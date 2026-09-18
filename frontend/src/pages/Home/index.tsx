@@ -19,7 +19,6 @@ const MARQUEE_ITEMS = [
 const STATS = [
   { n: '5 K+', label: 'Diseños únicos' },
   { n: '8',    label: 'Años de arte' },
-  { n: '127',  label: 'Clientas activas' },
   { n: '4.9',  label: 'Calificación ★' },
 ];
 
@@ -44,7 +43,7 @@ export function Home() {
       {/* ══════════════════════════════════════════════
           HERO
       ══════════════════════════════════════════════ */}
-      <section className="relative min-h-screen flex items-center justify-center noise" style={{ paddingTop: '7rem' }}>
+      <section className="relative min-h-screen flex items-center justify-center noise pt-32 pb-28">
         {/* Background image */}
         <div className="absolute inset-0 z-0">
           <img
@@ -104,10 +103,10 @@ export function Home() {
           </div>
 
           {/* Quick trust signals */}
-          <div className="flex items-center justify-center gap-6 mt-14 flex-wrap">
-            {['Materiales certificados', 'Artistas profesionales', 'Sin cita por cancelar'].map((t, i) => (
-              <div key={i} className="flex items-center gap-2 text-[#7a6e60] text-xs">
-                <div className="w-1 h-1 rounded-full bg-[#c9a96e]" />
+          <div className="relative z-10 flex items-center justify-center gap-x-6 gap-y-3 mt-10 px-4 flex-wrap">
+            {['Materiales certificados', 'Artistas profesionales'].map((t, i) => (
+              <div key={i} className="flex items-center gap-2 text-[#7a6e60] text-xs whitespace-nowrap">
+                <div className="w-1 h-1 rounded-full bg-[#c9a96e] shrink-0" />
                 {t}
               </div>
             ))}
@@ -115,8 +114,8 @@ export function Home() {
         </div>
 
         {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
-          <div className="w-px h-14 relative overflow-hidden">
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-0 hidden sm:flex flex-col items-center gap-2 pointer-events-none" aria-hidden="true">
+          <div className="w-px h-10 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-b from-[#c9a96e]/60 to-transparent animate-[shimmer_2s_ease_infinite]"
               style={{ background: 'linear-gradient(to bottom, transparent, #c9a96e, transparent)', backgroundSize: '100% 200%', animation: 'scroll-line 2s ease infinite' }} />
           </div>
@@ -142,7 +141,7 @@ export function Home() {
           STATS
       ══════════════════════════════════════════════ */}
       <section className="py-20 px-6">
-        <div className="max-w-5xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-px" style={{ background: 'linear-gradient(90deg, transparent, #231e14, transparent)' }}>
+        <div className="max-w-5xl mx-auto grid grid-cols-2 lg:grid-cols-3 gap-px" style={{ background: 'linear-gradient(90deg, transparent, #231e14, transparent)' }}>
           {STATS.map((s, i) => (
             <div key={i} className="flex flex-col items-center py-10 px-6 text-center" style={{ background: '#080706' }}>
               <span className="font-serif text-5xl lg:text-6xl text-gradient mb-2" style={{ lineHeight: 1 }}>{s.n}</span>

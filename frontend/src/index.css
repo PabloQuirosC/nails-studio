@@ -19,6 +19,7 @@
 }
 
 :root {
+  color-scheme: dark;
   --background: #080706;
   --foreground: #f0ebe4;
   --card: #111009;
@@ -264,4 +265,92 @@ body {
 .card-lift:hover {
   transform: translateY(-4px);
   box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 40px rgba(201,169,110,0.06);
+}
+
+/* ── Chrome autofill fix (tema oscuro) ── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: #f0ebe4 !important;
+  -webkit-box-shadow: 0 0 0 1000px #0d0b0a inset !important;
+  box-shadow: 0 0 0 1000px #0d0b0a inset !important;
+  caret-color: #f0ebe4;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ── Global nails loader (spinner boutique) ── */
+.nail-tip {
+  position: relative;
+  border-radius: 999px 999px 9px 9px;
+  border: 1px solid rgba(201, 169, 110, 0.45);
+  background: rgba(201, 169, 110, 0.08);
+  overflow: hidden;
+  animation: nail-bob 1.15s ease-in-out infinite;
+}
+.nail-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: bottom;
+  background: linear-gradient(180deg, #e8d4a8 0%, #c9a96e 55%, #9a7433 100%);
+  animation: nail-fill 1.15s ease-in-out infinite;
+}
+.nail-shine {
+  position: absolute;
+  top: 4px;
+  left: 5px;
+  width: 4px;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  filter: blur(0.5px);
+  animation: nail-bob 1.15s ease-in-out infinite;
+}
+@keyframes nail-bob {
+  0%, 100% { transform: translateY(0); opacity: 0.55; }
+  50%      { transform: translateY(-5px); opacity: 1; }
+}
+@keyframes nail-fill {
+  0%   { transform: scaleY(0.15); opacity: 0.45; }
+  50%  { transform: scaleY(1); opacity: 1; }
+  100% { transform: scaleY(0.15); opacity: 0.45; }
+}
+.brush-stroke {
+  position: relative;
+  width: 150px;
+  height: 2px;
+  margin-top: 16px;
+  border-radius: 999px;
+  background: rgba(201, 169, 110, 0.15);
+  overflow: hidden;
+}
+.brush-bristle {
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, #e8d4a8, transparent);
+  animation: brush-sweep 1.3s ease-in-out infinite;
+}
+@keyframes brush-sweep {
+  from { left: -40%; }
+  to   { left: 100%; }
+}
+.loader-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #c9a96e;
+  animation: dot-pulse 1s ease-in-out infinite;
+}
+@keyframes dot-pulse {
+  0%, 100% { opacity: 0.25; transform: scale(0.8); }
+  50%      { opacity: 1; transform: scale(1.2); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nail-tip, .nail-fill, .nail-shine, .brush-bristle, .loader-dot {
+    animation: none;
+  }
 }
