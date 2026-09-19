@@ -1,10 +1,31 @@
 import { useParams, Link } from 'react-router';
 import { ArrowLeft, Clock, Star, Layers } from 'lucide-react';
 import { DESIGNS, CATEGORIES } from '../../data';
+import { usePublicCategories, usePublicDesign } from '../../features/catalog/public-api';
 
 export function DesignDetail() {
   const { id } = useParams();
-  const design = DESIGNS.find(d => d.id === Number(id));
+  const live = usePublicDesign(id);
+  const online = live.data !== undefined;
+  const catsQuery = usePublicCategories();
+  const liveCats = online && catsQuery.data !== undefined
+    ? catsQuery.data.map(c => ({ id: c.slug, name: c.name }))
+    : CATEGORIES;
+  const design = online
+    ? (live.data ? {
+        id: live.data.id,
+        name: live.data.name,
+        category: (catsQuery.data ?? []).find(c => c.id === live.data!.category_id)?.slug ?? '',
+        price: live.data.price,
+        duration: live.data.duration_min,
+        image: live.data.image_url ?? '',
+        description: live.data.description ?? '',
+        complexity: live.data.complexity ?? '',
+        occasion: live.data.occasion ?? '',
+        technique: live.data.technique ?? '',
+        tags: live.data.tags ?? [],
+      } : undefined)
+    : DESIGNS.find(d => d.id === Number(id));
 
   if (!design) return (
     <div className="min-h-screen pt-32 flex items-center justify-center text-center px-6">
@@ -15,7 +36,7 @@ export function DesignDetail() {
     </div>
   );
 
-  const cat = CATEGORIES.find(c => c.id === design.category);
+  const cat = liveCats.find(c => c.id === design.category);
 
   return (
     <div className="min-h-screen pt-24 px-6 pb-20">
@@ -45,7 +66,7 @@ export function DesignDetail() {
             <div className="grid grid-cols-3 gap-4 py-6 border-y border-[#2e2518]">
               <div>
                 <p className="text-[#8a7d6e] text-xs font-mono mb-1">Precio</p>
-                <p className="text-[#c9a96e] font-serif text-2xl">desde ${design.price}</p>
+                <p className="text-[#c9a96e] font-serif text-2xl">desde ₡{design.price.toLocaleString()}</p>
               </div>
               <div>
                 <p className="text-[#8a7d6e] text-xs font-mono mb-1">Duración</p>

@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router';
 import { Search, X, SlidersHorizontal, Clock, GitCompare } from 'lucide-react';
 import { DESIGNS, CATEGORIES, OCCASIONS, COMPLEXITIES } from '../../data';
 import { Modal, Toast } from '../../components/ui/Modal';
+import { CategoryIcon } from '../../shared/category-icons';
+import { usePublicCategories, usePublicDesigns } from '../../features/catalog/public-api';
 
 export function Catalog() {
   const [params] = useSearchParams();
@@ -21,7 +23,36 @@ export function Catalog() {
     setTimeout(() => setToast(t => ({ ...t, visible: false })), 2000);
   };
 
+  const catsQuery = usePublicCategories();
+  const onlineCats = catsQuery.data !== undefined;
+  const liveCategories = onlineCats
+    ? (catsQuery.data ?? []).map(c => ({ id: c.slug, name: c.name, icon: c.icon, color: c.color }))
+    : CATEGORIES;
+  const designsQuery = usePublicDesigns(search, category, occasion);
+  const onlineDesigns = designsQuery.data !== undefined;
+  const slugById = useMemo(
+    () => new Map((catsQuery.data ?? []).map(c => [c.id, c.slug] as const)),
+    [catsQuery.data],
+  );
+
   const filtered = useMemo(() => {
+    if (onlineDesigns) {
+      const items = (designsQuery.data?.items ?? []).map(d => ({
+        id: d.id,
+        name: d.name,
+        category: slugById.get(d.category_id) ?? '',
+        price: d.price,
+        duration: d.duration_min,
+        image: d.image_url ?? '',
+        description: d.description ?? '',
+        technique: d.technique ?? '',
+        tags: d.tags ?? [],
+        occasion: d.occasion ?? '',
+        complexity: d.complexity ?? '',
+      }));
+      if (!complexity) return items;
+      return items.filter(d => d.complexity === complexity);
+    }
     return DESIGNS.filter(d => {
       if (category && d.category !== category) return false;
       if (occasion && d.occasion !== occasion) return false;
@@ -29,7 +60,7 @@ export function Catalog() {
       if (search && !d.name.toLowerCase().includes(search.toLowerCase()) && !d.tags.some(t => t.includes(search.toLowerCase()))) return false;
       return true;
     });
-  }, [category, occasion, complexity, search]);
+  }, [onlineDesigns, designsQuery.data, slugById, category, occasion, complexity, search]);
 
   const toggleCompare = (id: number) => {
     if (compare.includes(id)) {
@@ -42,7 +73,7 @@ export function Catalog() {
     }
   };
 
-  const compareItems = DESIGNS.filter(d => compare.includes(d.id));
+  const compareItems = filtered.filter(d => compare.includes(d.id));
 
   return (
     <div className="min-h-screen pt-24 px-6 pb-20">
@@ -86,10 +117,10 @@ export function Catalog() {
             <div>
               <p className="text-[#8a7d6e] text-xs font-mono mb-3 uppercase tracking-widest">Categoría</p>
               <div className="flex flex-wrap gap-2">
-                {['', ...CATEGORIES.map(c => c.id)].map(cat => (
+                {['', ...liveCategories.map(c => c.id)].map(cat => (
                   <button key={cat} onClick={() => setCategory(cat)}
                     className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${category === cat ? 'border-[#c9a96e] text-[#c9a96e] bg-[#c9a96e]/10' : 'border-[#2e2518] text-[#8a7d6e] hover:border-[#8a7d6e]'}`}>
-                    {cat ? CATEGORIES.find(c => c.id === cat)?.name : 'Todos'}
+                    {cat ? liveCategories.find(c => c.id === cat)?.name : 'Todos'}
                   </button>
                 ))}
               </div>
@@ -140,10 +171,10 @@ export function Catalog() {
                   <div className="flex items-start justify-between gap-2">
                     <Link to={`/catalogo/${d.id}`} className="flex-1">
                       <p className="font-serif text-[#f0ebe4] group-hover:text-[#c9a96e] transition-colors text-sm leading-snug">{d.name}</p>
-                      <p className="text-[#8a7d6e] text-xs mt-0.5 capitalize">{CATEGORIES.find(c => c.id === d.category)?.name}</p>
+                      <p className="text-[#8a7d6e] text-xs mt-0.5 capitalize">{liveCategories.find(c => c.id === d.category)?.name}</p>
                     </Link>
                     <div className="text-right shrink-0">
-                      <p className="text-[#c9a96e] font-mono text-sm">${d.price}</p>
+                      <p className="text-[#c9a96e] font-mono text-sm">₡{d.price.toLocaleString()}</p>
                       <div className="flex items-center gap-1 text-[#8a7d6e] text-xs justify-end">
                         <Clock size={9} /> {d.duration}m
                       </div>
@@ -173,7 +204,7 @@ export function Catalog() {
             <div key={d.id} className="text-center">
               <img src={d.image} alt={d.name} className="w-full aspect-square object-cover rounded-lg mb-3" />
               <p className="font-serif text-[#f0ebe4] mb-1">{d.name}</p>
-              <p className="text-[#c9a96e] font-mono">desde ${d.price}</p>
+              <p className="text-[#c9a96e] font-mono">desde ₡{d.price.toLocaleString()}</p>
               <div className="mt-3 space-y-1 text-xs text-[#8a7d6e] text-left">
                 <div className="flex justify-between"><span>Duración</span><span className="text-[#f0ebe4]">{d.duration} min</span></div>
                 <div className="flex justify-between"><span>Complejidad</span><span className="text-[#f0ebe4]">{d.complexity}</span></div>

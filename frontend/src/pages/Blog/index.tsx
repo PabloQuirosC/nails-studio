@@ -1,8 +1,18 @@
 import { Link } from 'react-router';
 import { Clock } from 'lucide-react';
 import { BLOG_POSTS } from '../../data';
+import { usePublicPosts } from '../../features/catalog/public-api';
 
 export function Blog() {
+  const postsQuery = usePublicPosts('articulo');
+  const online = postsQuery.data !== undefined;
+  const posts = online
+    ? (postsQuery.data?.items ?? []).map(p => ({
+        id: p.slug, title: p.title, excerpt: p.excerpt ?? '', category: p.category,
+        image: p.image_url ?? '', readTime: `${p.read_minutes} min`,
+        date: new Date(p.created_at ?? Date.now()).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }),
+      }))
+    : BLOG_POSTS.map(p => ({ ...p, id: String(p.id) }));
   return (
     <div className="min-h-screen pt-24 px-6 pb-20">
       <div className="max-w-5xl mx-auto">
@@ -11,7 +21,7 @@ export function Blog() {
           <h1 className="font-serif text-4xl text-[#f0ebe4]">Tips & tendencias</h1>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {BLOG_POSTS.map(post => (
+          {posts.map(post => (
             <Link key={post.id} to={`/blog/${post.id}`} className="group bg-[#181310] border border-[#2e2518] rounded-xl overflow-hidden hover:border-[#c9a96e]/30 transition-colors">
               <div className="aspect-video overflow-hidden">
                 <img src={post.image} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />

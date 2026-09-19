@@ -1,10 +1,26 @@
 import { useParams, Link } from 'react-router';
 import { ArrowLeft, Clock } from 'lucide-react';
 import { BLOG_POSTS } from '../../data';
+import { usePublicPost } from '../../features/catalog/public-api';
 
 export function BlogPost() {
   const { id } = useParams();
-  const post = BLOG_POSTS.find(p => p.id === Number(id));
+  const live = usePublicPost(id);
+  const online = live.data !== undefined;
+  const post = online
+    ? (live.data ? {
+        category: live.data.category,
+        title: live.data.title,
+        readTime: `${live.data.read_minutes} min`,
+        date: new Date(live.data.created_at ?? Date.now()).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }),
+        image: live.data.image_url ?? '',
+        excerpt: live.data.excerpt ?? '',
+        body: (live.data.body ?? '').split('\n\n'),
+      } : undefined)
+    : (() => {
+        const found = BLOG_POSTS.find(p => p.id === Number(id));
+        return found ? { ...found, body: [] as string[] } : undefined;
+      })();
 
   if (!post) return (
     <div className="min-h-screen pt-32 flex items-center justify-center text-center px-6">
@@ -29,8 +45,14 @@ export function BlogPost() {
         <img src={post.image} alt={post.title} className="w-full rounded-xl mb-10 aspect-video object-cover" />
         <div className="prose prose-invert max-w-none">
           <p className="text-[#c8bfb0] leading-relaxed text-base mb-4">{post.excerpt}</p>
-          <p className="text-[#8a7d6e] leading-relaxed">El cuidado de las uñas va más allá de la estética. Es una práctica de autocuidado que, cuando se realiza con los materiales y técnicas correctas, puede transformar tu rutina y elevar tu confianza.</p>
-          <p className="text-[#8a7d6e] leading-relaxed mt-4">En Nails Studio nos especializamos en técnicas que no solo lucen increíbles, sino que cuidan la salud de tu uña natural. Cada decisión de diseño parte de entender la forma, longitud y condición de cada uña.</p>
+          {post.body.length > 0 ? (
+            post.body.map((p, i) => <p key={i} className="text-[#8a7d6e] leading-relaxed mt-4">{p}</p>)
+          ) : (
+            <>
+              <p className="text-[#8a7d6e] leading-relaxed">El cuidado de las uñas va más allá de la estética. Es una práctica de autocuidado que, cuando se realiza con los materiales y técnicas correctas, puede transformar tu rutina y elevar tu confianza.</p>
+              <p className="text-[#8a7d6e] leading-relaxed mt-4">En Nails Studio nos especializamos en técnicas que no solo lucen increíbles, sino que cuidan la salud de tu uña natural. Cada decisión de diseño parte de entender la forma, longitud y condición de cada uña.</p>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { Check, ChevronRight, Calendar, Clock, User, MessageSquare } from 'lucide-react';
 import { DESIGNS, CATEGORIES, TIME_SLOTS } from '../../data';
+import { CategoryIcon } from '../../shared/category-icons';
+import { usePublicCategories, usePublicDesigns } from '../../features/catalog/public-api';
 import { Modal } from '../../components/ui/Modal';
 
 const STEPS = ['Servicio', 'Fecha y hora', 'Tus datos', 'Confirmación'];
@@ -14,8 +16,30 @@ export function Booking() {
   const [params] = useSearchParams();
   const designId = params.get('design') ? Number(params.get('design')) : null;
   const [step, setStep] = useState(0);
+  const catsQuery = usePublicCategories();
+  const designsQuery = usePublicDesigns();
+  const online = catsQuery.data !== undefined && designsQuery.data !== undefined;
+  const slugById = new Map((catsQuery.data ?? []).map(c => [c.id, c.slug] as const));
+  const liveCategories = online
+    ? (catsQuery.data ?? []).map(c => ({ id: c.slug, name: c.name, icon: c.icon }))
+    : CATEGORIES;
+  const liveDesigns = online
+    ? (designsQuery.data?.items ?? []).map(d => ({
+        id: d.id,
+        name: d.name,
+        category: slugById.get(d.category_id) ?? '',
+        price: d.price,
+        duration: d.duration_min,
+        image: d.image_url ?? '',
+        description: d.description ?? '',
+        technique: d.technique ?? '',
+        tags: d.tags ?? [],
+        occasion: d.occasion ?? '',
+        complexity: d.complexity ?? '',
+      }))
+    : DESIGNS;
   const [selected, setSelected] = useState({
-    design: designId ? DESIGNS.find(d => d.id === designId) : null,
+    design: designId ? liveDesigns.find(d => d.id === designId) : null,
     category: '',
     isEvent: false,
     date: null as Date | null,
@@ -28,6 +52,13 @@ export function Booking() {
     eventDate: '',
   });
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    if (designId && !selected.design) {
+      const found = liveDesigns.find(d => d.id === designId);
+      if (found) setSelected(s => ({ ...s, design: found }));
+    }
+  }, [designId, liveDesigns, selected.design]);
   const today = new Date();
   const [calMonth, setCalMonth] = useState(today.getMonth());
   const [calYear, setCalYear] = useState(today.getFullYear());
@@ -115,15 +146,15 @@ export function Booking() {
                       <img src={selected.design.image} alt="" className="w-12 h-12 object-cover rounded" />
                       <div>
                         <p className="text-[#f0ebe4] text-sm">{selected.design.name}</p>
-                        <p className="text-[#c9a96e] text-xs font-mono">desde ${selected.design.price}</p>
+                        <p className="text-[#c9a96e] text-xs font-mono">desde ₡{selected.design.price.toLocaleString()}</p>
                       </div>
                     </div>
                   )}
                   <div className="grid grid-cols-2 gap-2">
-                    {CATEGORIES.map(cat => (
+                    {liveCategories.map(cat => (
                       <button key={cat.id} onClick={() => setSelected(s => ({ ...s, category: cat.id }))}
                         className={`p-3 rounded-lg border text-left transition-colors ${selected.category === cat.id ? 'border-[#c9a96e] bg-[#c9a96e]/10' : 'border-[#2e2518] hover:border-[#8a7d6e]'}`}>
-                        <span className="text-xl">{cat.icon}</span>
+                        <span className="block text-[#c9a96e]"><CategoryIcon name={cat.icon} size={20} /></span>
                         <p className="text-[#f0ebe4] text-sm mt-1">{cat.name}</p>
                       </button>
                     ))}
@@ -213,7 +244,7 @@ export function Booking() {
               <h2 className="font-serif text-2xl text-[#f0ebe4] mb-6">Revisa tu reserva</h2>
               <div className="space-y-4">
                 {[
-                  { label: 'Servicio', value: selected.design?.name || CATEGORIES.find(c => c.id === selected.category)?.name || '—', icon: null },
+                  { label: 'Servicio', value: selected.design?.name || liveCategories.find(c => c.id === selected.category)?.name || '—', icon: null },
                   { label: 'Fecha', value: selected.date?.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) || '—', icon: Calendar },
                   { label: 'Hora', value: selected.time || '—', icon: Clock },
                   { label: 'Nombre', value: selected.name, icon: User },

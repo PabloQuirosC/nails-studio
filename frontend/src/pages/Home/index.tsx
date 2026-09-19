@@ -1,6 +1,8 @@
 import { Link } from 'react-router';
-import { ArrowRight, Star, Clock, MapPin, ArrowUpRight } from 'lucide-react';
+import { ArrowRight, Star, Sparkle, Clock, MapPin, ArrowUpRight } from 'lucide-react';
 import { CATEGORIES, DESIGNS, TESTIMONIALS } from '../../data';
+import { CategoryIcon } from '../../shared/category-icons';
+import { usePublicPosts } from '../../features/catalog/public-api';
 
 function isOpen() {
   const h = new Date().getHours() + new Date().getMinutes() / 60;
@@ -17,9 +19,9 @@ const MARQUEE_ITEMS = [
 ];
 
 const STATS = [
-  { n: '5 K+', label: 'Diseños únicos' },
-  { n: '8',    label: 'Años de arte' },
-  { n: '4.9',  label: 'Calificación ★' },
+  { n: '5 K+', label: 'Diseños únicos', star: false },
+  { n: '8',    label: 'Años de arte', star: false },
+  { n: '4.9',  label: 'Calificación', star: true },
 ];
 
 const CATEGORY_IMAGES = [
@@ -36,6 +38,17 @@ const CATEGORY_IMAGES = [
 export function Home() {
   const open = isOpen();
   const trending = DESIGNS.slice(0, 8);
+  const testiQuery = usePublicPosts('testimonio');
+  const testiItems = testiQuery.data !== undefined
+    ? (testiQuery.data.items ?? []).map(p => ({
+        id: `srv-${p.id}` as string | number,
+        name: p.author ?? p.title,
+        text: p.excerpt ?? '',
+        design: p.design_name ?? '',
+        rating: p.rating ?? 5,
+        avatar: (p.author ?? '?').trim().charAt(0).toUpperCase(),
+      }))
+    : TESTIMONIALS;
 
   return (
     <div className="overflow-x-hidden">
@@ -131,7 +144,7 @@ export function Home() {
           {MARQUEE_ITEMS.map((item, i) => (
             <span key={i} className="flex items-center shrink-0">
               <span className="font-serif italic text-[#f0ebe4]/70 text-lg px-8 whitespace-nowrap">{item}</span>
-              <span className="text-[#c9a96e] text-sm">✦</span>
+              <span className="text-[#c9a96e] flex items-center"><Sparkle size={12} /></span>
             </span>
           ))}
         </div>
@@ -145,7 +158,10 @@ export function Home() {
           {STATS.map((s, i) => (
             <div key={i} className="flex flex-col items-center py-10 px-6 text-center" style={{ background: '#080706' }}>
               <span className="font-serif text-5xl lg:text-6xl text-gradient mb-2" style={{ lineHeight: 1 }}>{s.n}</span>
-              <span className="font-mono text-[#7a6e60] text-xs tracking-widest uppercase mt-2">{s.label}</span>
+              <span className="font-mono text-[#7a6e60] text-xs tracking-widest uppercase mt-2 flex items-center gap-1.5">
+                {s.label}
+                {s.star && <Star size={11} className="fill-[#c9a96e] text-[#c9a96e]" />}
+              </span>
             </div>
           ))}
         </div>
@@ -199,7 +215,7 @@ export function Home() {
                 <div className="absolute inset-x-0 bottom-0 p-5">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="text-2xl mb-2 block">{cat.icon}</span>
+                      <span className="mb-2 block text-[#e8d4a8]"><CategoryIcon name={cat.icon} size={22} /></span>
                       <p className="font-serif text-[#f0ebe4] text-sm sm:text-base leading-tight group-hover:text-[#c9a96e] transition-colors duration-300">
                         {cat.name}
                       </p>
@@ -294,7 +310,7 @@ export function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {TESTIMONIALS.map((t, i) => (
+            {testiItems.map((t, i) => (
               <div
                 key={t.id}
                 className="glass-card rounded-2xl p-8 card-lift border-gradient relative overflow-hidden"

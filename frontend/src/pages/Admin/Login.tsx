@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Eye, EyeOff, Mail, Lock, Sparkles, ArrowRight, ArrowLeft, Loader2, TriangleAlert } from 'lucide-react';
-import { ADMIN_CREDENTIALS } from '../../data';
-import { withLoading } from '../../shared/loading/loading-store';
+import { useAuthStore } from '../../shared/auth/auth-store';
 
 const DRIVE_COVER = 'https://drive.google.com/thumbnail?id=1Z0KrgimGcjZZICdSUlKEgSmdNU_R5utM&sz=w1000';
 const FALLBACK_COVER = 'https://images.unsplash.com/photo-1604654894610-df63bc536371?w=1000&h=1400&fit=crop&auto=format';
@@ -13,35 +12,26 @@ export function AdminLogin() {
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { user, hydrated, hydrate, login, busy } = useAuthStore();
+
+  useEffect(() => {
+    if (!hydrated) void hydrate();
+  }, [hydrated, hydrate]);
+
+  useEffect(() => {
+    if (hydrated && user) navigate('/admin/dashboard', { replace: true });
+  }, [hydrated, user, navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (loading) return;
+    if (busy) return;
     setError('');
-    setLoading(true);
-
-    // Bloquea la página con el spinner de uñas hasta tener respuesta.
-    // Reemplazar el setTimeout por POST /api/v1/auth/login vía apiFetch.
-    void withLoading(
-      () =>
-        new Promise<boolean>((resolve) =>
-          window.setTimeout(() => {
-            resolve(
-              email.trim().toLowerCase() === ADMIN_CREDENTIALS.email &&
-                password === ADMIN_CREDENTIALS.password,
-            );
-          }, 900),
-        ),
-      'Verificando tus credenciales…',
-    ).then((ok) => {
-      setLoading(false);
+    void login(email, password).then((ok) => {
       if (ok) {
-        localStorage.setItem('ns_admin', '1');
-        navigate('/admin/dashboard');
+        navigate('/admin/dashboard', { replace: true });
       } else {
-        setError('Credenciales incorrectas. Verifica tu email y contraseña.');
+        setError(useAuthStore.getState().error ?? 'Credenciales incorrectas. Verifica tu email y contraseña.');
       }
     });
   };
@@ -197,10 +187,10 @@ export function AdminLogin() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={busy}
               className="btn-primary glow-gold-hover w-full !py-3.5 !text-[15px] disabled:opacity-70 disabled:cursor-wait"
             >
-              {loading ? (
+              {busy ? (
                 <>
                   <Loader2 size={16} className="animate-spin" /> Verificando…
                 </>

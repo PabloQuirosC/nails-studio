@@ -12,6 +12,7 @@ import { Contact } from '../pages/Contact';
 import { Referrals } from '../pages/Referrals';
 import { AdminLogin } from '../pages/Admin/Login';
 import { AdminDashboard } from '../pages/Admin/Dashboard';
+import { ProtectedRoute } from '../shared/auth/guards';
 
 export const router = createBrowserRouter([
   {
@@ -31,5 +32,12 @@ export const router = createBrowserRouter([
     ],
   },
   { path: '/admin', Component: AdminLogin },
-  { path: '/admin/dashboard', Component: AdminDashboard },
+  {
+    path: '/admin/dashboard',
+    element: (
+      <ProtectedRoute>
+        <AdminDashboard />
+      </ProtectedRoute>
+    ),
+  },
 ]);
