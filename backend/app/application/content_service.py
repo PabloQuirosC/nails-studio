@@ -38,12 +38,15 @@ def get_by_ref(db: Session, ref: str, *, public_only: bool = True) -> Post:
 
 
 def list_posts(db: Session, *, offset: int = 0, limit: int = 50, q: str = "",
-               kind: str = "", category: str = "", public_only: bool = True) -> tuple[list[Post], int]:
+               kind: str = "", category: str = "", public_only: bool = True,
+               published: bool | None = None) -> tuple[list[Post], int]:
     if kind and kind not in KINDS:
         raise Conflict("kind inválido (articulo|testimonio)")
     filters = []
     if public_only:
         filters.append(Post.published.is_(True))
+    elif published is not None:
+        filters.append(Post.published.is_(published))
     if kind:
         filters.append(Post.kind == kind)
     if category.strip():

@@ -1,5 +1,5 @@
 /** Catálogo público (sin auth): diseños y categorías con fallback a mocks. */
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../../shared/auth/api-client';
 
 export interface PublicCategory {
@@ -96,5 +96,17 @@ export function usePublicPost(ref: string | undefined) {
     enabled: !!ref,
     retry: 1,
     staleTime: 120_000,
+  });
+}
+
+export function useSubmitTestimonio() {
+  return useMutation({
+    mutationFn: (input: { author: string; text: string; rating: number; design_name?: string }) =>
+      apiFetch<{ detail: string; id: number }>('/api/v1/posts/testimonios', {
+        method: 'POST',
+        body: JSON.stringify(input),
+        message: 'Enviando tu reseña…',
+      }),
+    retry: 0,
   });
 }

@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowRight, Star, Sparkle, Clock, MapPin, ArrowUpRight } from 'lucide-react';
+import { ArrowRight, Star, Sparkle, Clock, MapPin, ArrowUpRight, PenLine } from 'lucide-react';
 import { CATEGORIES, DESIGNS, TESTIMONIALS } from '../../data';
 import { CategoryIcon } from '../../shared/category-icons';
-import { usePublicPosts } from '../../features/catalog/public-api';
+import { usePublicPosts, useSubmitTestimonio } from '../../features/catalog/public-api';
+import { Modal, Toast } from '../../components/ui/Modal';
 
 function isOpen() {
   const h = new Date().getHours() + new Date().getMinutes() / 60;
@@ -49,6 +51,37 @@ export function Home() {
         avatar: (p.author ?? '?').trim().charAt(0).toUpperCase(),
       }))
     : TESTIMONIALS;
+
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewName, setReviewName] = useState('');
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewDesign, setReviewDesign] = useState('');
+  const [reviewText, setReviewText] = useState('');
+  const [reviewError, setReviewError] = useState('');
+  const [toast, setToast] = useState({ msg: '', visible: false });
+  const submitReview = useSubmitTestimonio();
+
+  const showToast = (msg: string) => {
+    setToast({ msg, visible: true });
+    setTimeout(() => setToast(t => ({ ...t, visible: false })), 2600);
+  };
+
+  const handleReview = () => {
+    if (reviewName.trim().length < 2) { setReviewError('Escribe tu nombre.'); return; }
+    if (reviewText.trim().length < 10) { setReviewError('Cuéntanos un poco más (mínimo 10 caracteres).'); return; }
+    setReviewError('');
+    submitReview.mutate(
+      { author: reviewName.trim(), text: reviewText.trim(), rating: reviewRating, design_name: reviewDesign.trim() || undefined },
+      {
+        onSuccess: () => {
+          setReviewOpen(false);
+          setReviewName(''); setReviewText(''); setReviewDesign(''); setReviewRating(5);
+          showToast('¡Gracias! Tu reseña será publicada tras revisión.');
+        },
+        onError: (err) => setReviewError((err as Error).message || 'No se pudo enviar. Intenta de nuevo.'),
+      },
+    );
+  };
 
   return (
     <div className="overflow-x-hidden">
@@ -307,6 +340,12 @@ export function Home() {
             <h2 className="font-serif text-[#f0ebe4]" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>
               Lo que dicen ellas
             </h2>
+            <button
+              onClick={() => { setReviewError(''); setReviewOpen(true); }}
+              className="mt-6 inline-flex items-center gap-2 px-6 py-2.5 border border-[#c9a96e]/40 text-[#c9a96e] text-sm rounded-full hover:bg-[#c9a96e]/10 transition-colors"
+            >
+              <PenLine size={14} /> Deja tu reseña
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -440,6 +479,50 @@ export function Home() {
           </div>
         </div>
       </section>
+
+      {/* ── Modal: deja tu reseña ── */}
+      <Modal open={reviewOpen} onClose={() => setReviewOpen(false)} title="Deja tu reseña" size="sm">
+        <div className="space-y-4 mb-6">
+          <div>
+            <label className="text-[#8a7d6e] text-xs font-mono uppercase tracking-widest block mb-1.5">Tu nombre *</label>
+            <input value={reviewName} onChange={e => setReviewName(e.target.value)}
+              placeholder="Ej. Ana López" className="w-full bg-[#0d0b0a] border border-[#2e2518] rounded px-3 py-2.5 text-[#f0ebe4] text-sm focus:outline-none focus:border-[#c9a96e] transition-colors" />
+          </div>
+          <div>
+            <label className="text-[#8a7d6e] text-xs font-mono uppercase tracking-widest block mb-1.5">Calificación *</label>
+            <div className="flex gap-1.5">
+              {[1, 2, 3, 4, 5].map(n => (
+                <button key={n} type="button" onClick={() => setReviewRating(n)} aria-label={`${n} estrellas`}>
+                  <Star size={26} className={n <= reviewRating ? 'fill-[#c9a96e] text-[#c9a96e]' : 'text-[#4a4238] hover:text-[#8a7d6e]'} />
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-[#8a7d6e] text-xs font-mono uppercase tracking-widest block mb-1.5">Diseño (opcional)</label>
+            <input value={reviewDesign} onChange={e => setReviewDesign(e.target.value)}
+              placeholder="Ej. Botanical Garden" className="w-full bg-[#0d0b0a] border border-[#2e2518] rounded px-3 py-2.5 text-[#f0ebe4] text-sm focus:outline-none focus:border-[#c9a96e] transition-colors" />
+          </div>
+          <div>
+            <label className="text-[#8a7d6e] text-xs font-mono uppercase tracking-widest block mb-1.5">Tu experiencia *</label>
+            <textarea value={reviewText} onChange={e => setReviewText(e.target.value)} rows={4} maxLength={2000}
+              placeholder="Cuéntanos cómo te fue en el estudio…"
+              className="w-full bg-[#0d0b0a] border border-[#2e2518] rounded px-3 py-2.5 text-[#f0ebe4] text-sm focus:outline-none focus:border-[#c9a96e] transition-colors resize-none" />
+          </div>
+          {reviewError && (
+            <p className="p-3 bg-[#d4613a]/10 border border-[#d4613a]/30 rounded text-[#e08a6d] text-xs">{reviewError}</p>
+          )}
+        </div>
+        <div className="flex gap-3">
+          <button onClick={() => setReviewOpen(false)}
+            className="flex-1 py-2.5 border border-[#2e2518] text-[#8a7d6e] text-sm rounded hover:border-[#8a7d6e] transition-colors">Cancelar</button>
+          <button onClick={handleReview} disabled={submitReview.isPending}
+            className="flex-1 py-2.5 bg-[#c9a96e] text-[#0d0b0a] text-sm font-medium rounded hover:bg-[#d4b87e] disabled:opacity-50 transition-colors">
+            {submitReview.isPending ? 'Enviando…' : 'Enviar reseña'}
+          </button>
+        </div>
+      </Modal>
+      <Toast message={toast.msg} visible={toast.visible} />
 
     </div>
   );

@@ -18,6 +18,14 @@ class PostCreate(BaseModel):
     published: bool = True
 
 
+class TestimonioCreate(BaseModel):
+    """Reseña pública: entra como pendiente de moderación."""
+    author: str = Field(min_length=2, max_length=200)
+    text: str = Field(min_length=10, max_length=2000)
+    rating: int = Field(ge=1, le=5)
+    design_name: str | None = Field(default=None, max_length=150)
+
+
 class PostUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=2, max_length=200)
     kind: str | None = Field(default=None, max_length=20)

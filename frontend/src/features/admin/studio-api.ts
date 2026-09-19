@@ -300,7 +300,65 @@ export function useAdjustClientPoints() {
   });
 }
 
-// ─── Lealtad (gift cards emitidas cada 10 visitas) ───
+// ─── Reseñas (panel admin: pendientes + publicadas, editar/eliminar) ───
+export interface AdminPost {
+  id: number;
+  slug: string;
+  kind: string;
+  title: string;
+  excerpt: string | null;
+  body: string | null;
+  category: string;
+  author: string | null;
+  rating: number | null;
+  design_name: string | null;
+  published: boolean;
+}
+
+export function useAdminPosts(published: boolean | null, page = 1, limit = 6) {
+  const pub = published === null ? '' : `&published=${published}`;
+  const offset = (Math.max(1, page) - 1) * limit;
+  return useQuery({
+    queryKey: ['admin', 'posts', published, page, limit],
+    queryFn: () =>
+      apiFetch<Page<AdminPost>>(`/api/v1/posts/admin/todos?offset=${offset}&limit=${limit}&kind=testimonio${pub}`, {
+        message: 'Cargando reseñas…',
+      }),
+    retry: 1,
+    staleTime: 30_000,
+  });
+}
+
+export function usePublishPost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: number; published: boolean }) =>
+      apiFetch<AdminPost>(`/api/v1/posts/${input.id}`, {
+        method: 'PUT', body: JSON.stringify({ published: input.published }), message: 'Actualizando…',
+      }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin', 'posts'] }); },
+  });
+}
+
+export function useUpdatePost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: number; patch: Record<string, unknown> }) =>
+      apiFetch<AdminPost>(`/api/v1/posts/${input.id}`, {
+        method: 'PUT', body: JSON.stringify(input.patch), message: 'Guardando cambios…',
+      }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin', 'posts'] }); },
+  });
+}
+
+export function useDeletePost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<{ detail: string }>(`/api/v1/posts/${id}`, { method: 'DELETE', message: 'Eliminando…' }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin', 'posts'] }); },
+  });
+}
 export function useLoyaltyCards(enabled: boolean) {
   return useQuery({
     queryKey: ['studio', 'loyalty-cards'],

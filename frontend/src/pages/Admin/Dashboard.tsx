@@ -5,7 +5,7 @@ import {
   Bell, LogOut, Plus, Trash2, Edit3, ChevronDown,
   ChevronLeft, ChevronRight, Shield, Check, X as XIcon,
   Search, UserPlus, Key, Clock, ArrowRight, Sparkles,
-  Phone, MessageCircle, Crown, Copy,
+  Phone, MessageCircle, Crown, Copy, Star,
 } from 'lucide-react';
 import { DESIGNS, CATEGORIES } from '../../data';
 import { useAuthStore } from '../../shared/auth/auth-store';
@@ -50,6 +50,10 @@ import {
   useServerClients,
   useServerDesigns,
   useSetAppointmentStatus,
+  useAdminPosts,
+  usePublishPost,
+  useUpdatePost,
+  useDeletePost,
   type Appointment,
   type Design,
 } from '../../features/admin/studio-api';
@@ -64,6 +68,7 @@ const TABS = [
   { id: 'clients',   label: 'Clientas',  icon: Users     },
   { id: 'users',     label: 'Usuarios',  icon: Shield    },
   { id: 'giftcards', label: 'Gift Cards',icon: Gift      },
+  { id: 'reviews',   label: 'Reseñas',   icon: Star      },
 ];
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -350,6 +355,78 @@ export function AdminDashboard() {
     try { await navigator.clipboard?.writeText(code); } catch { /* portapapeles no disponible */ }
     setCopiedCode(code);
     window.setTimeout(() => setCopiedCode(c => c === code ? null : c), 1600);
+  };
+
+  // ── Reseñas: moderación (pendientes + publicadas, editar/eliminar) ──
+  const REVIEW_PAGE_SIZE = 6;
+  const [reviewFilter, setReviewFilter] = useState<'pending' | 'published'>('pending');
+  const [reviewPage, setReviewPage] = useState(1);
+  const [editReviewId, setEditReviewId] = useState<number | null>(null);
+  const [editReview, setEditReview] = useState({ text: '', rating: 5, design_name: '' });
+  const [editReviewError, setEditReviewError] = useState('');
+  const [deleteReviewModal, setDeleteReviewModal] = useState<{ open: boolean; id: number | null; name: string }>({ open: false, id: null, name: '' });
+  const reviewsQuery = useAdminPosts(reviewFilter === 'pending' ? false : true, reviewPage, REVIEW_PAGE_SIZE);
+  const onlineReviews = reviewsQuery.data !== undefined;
+  const reviewItems = (reviewsQuery.data?.items ?? []).filter(p => p.kind === 'testimonio');
+  const reviewTotal = reviewsQuery.data?.total ?? reviewItems.length;
+  const reviewTotalPages = Math.max(1, Math.ceil(reviewTotal / REVIEW_PAGE_SIZE));
+  const goReviewPage = (p: number) => setReviewPage(Math.max(1, Math.min(reviewTotalPages, p)));
+  const switchReviewFilter = (f: 'pending' | 'published') => {
+    setReviewFilter(f);
+    setReviewPage(1);
+  };
+  // Contador liviano para el badge del sidebar (solo usa `total`, trae 1 item).
+  const pendingBadgeQuery = useAdminPosts(false, 1, 1);
+  const pendingCount = pendingBadgeQuery.data?.total ?? 0;
+  // Si al moderar la página queda vacía (último item aprobado/eliminado), retrocede.
+  useEffect(() => {
+    if (!reviewsQuery.isLoading && reviewItems.length === 0 && reviewPage > 1 && reviewsQuery.data !== undefined) {
+      setReviewPage(reviewPage - 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewsQuery.data, reviewItems.length, reviewPage]);
+  const publishMut = usePublishPost();
+  const updatePostMut = useUpdatePost();
+  const deletePostMut = useDeletePost();
+
+  const openEditReview = (p: { id: number; excerpt: string | null; rating: number | null; design_name: string | null }) => {
+    setEditReviewError('');
+    setEditReview({
+      text: p.excerpt ?? '',
+      rating: p.rating ?? 5,
+      design_name: p.design_name ?? '',
+    });
+    setEditReviewId(p.id);
+  };
+
+  const handleSaveReview = () => {
+    if (editReviewId === null) return;
+    if (editReview.text.trim().length < 10) {
+      setEditReviewError('El texto necesita mínimo 10 caracteres.');
+      return;
+    }
+    setEditReviewError('');
+    updatePostMut.mutate(
+      {
+        id: editReviewId,
+        patch: {
+          excerpt: editReview.text.trim(),
+          rating: editReview.rating,
+          design_name: editReview.design_name.trim() || null,
+        },
+      },
+      {
+        onSuccess: () => setEditReviewId(null),
+        onError: (err) => setEditReviewError((err as Error).message),
+      },
+    );
+  };
+
+  const confirmDeleteReview = () => {
+    if (deleteReviewModal.id === null) return;
+    deletePostMut.mutate(deleteReviewModal.id, {
+      onSuccess: () => setDeleteReviewModal({ open: false, id: null, name: '' }),
+    });
   };
   const updateGcMut = useUpdateGiftCard();
 
@@ -1113,7 +1190,7 @@ export function AdminDashboard() {
           {([
             { section: 'Gestión', ids: ['overview', 'catalog', 'agenda'] },
             { section: 'Personas', ids: ['clients', 'users'] },
-            { section: 'Negocio', ids: ['giftcards'] },
+            { section: 'Negocio', ids: ['giftcards', 'reviews'] },
           ] as const).map(group => (
             <div key={group.section}>
               <p className="px-3 mb-2 font-mono text-[9px] tracking-[0.28em] uppercase text-[#4a4238]">{group.section}</p>
@@ -1126,7 +1203,8 @@ export function AdminDashboard() {
                     t.id === 'catalog' ? String(designs.length) :
                     t.id === 'clients' ? String(effClientsBase.length) :
                     t.id === 'users' ? String(onlineUsers ? serverUserTotal : users.length) :
-                    t.id === 'giftcards' ? String(onlineGc ? gcSource.filter(g => !g.used).length : giftCards.filter(g => !g.used).length) : null;
+                    t.id === 'giftcards' ? String(onlineGc ? gcSource.filter(g => !g.used).length : giftCards.filter(g => !g.used).length) :
+                    t.id === 'reviews' ? (pendingCount > 0 ? String(pendingCount) : null) : null;
                   return (
                     <button key={t.id} onClick={() => setTab(t.id)}
                       className={`group relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] transition-all duration-300 animate-slide-right ${active ? 'text-[#e8d4a8]' : 'text-[#8a7d6e] hover:text-[#f0ebe4] hover:bg-white/[0.04] hover:translate-x-0.5'}`}
@@ -2251,8 +2329,6 @@ export function AdminDashboard() {
             )}
           </div>
         )}
-          </div>
-        )}
         {tab === 'giftcards' && (
           <div className="space-y-4">
             {/* ── Barra compacta ── */}
@@ -2329,10 +2405,9 @@ export function AdminDashboard() {
                   </button>
                 </div>
               </div>
-            ) : (
+                        ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filteredGcs.map(g => (
-                  <div key={g.code} className={`relative rounded-2xl border p-5 overflow-hidden transition-all group ${g.used ? 'bg-[#141110] border-[#2e2518] opacity-70' : 'bg-[#181310] border-[#c9a96e]/30 hover:border-[#c9a96e]/55 hover:shadow-[0_8px_36px_rgba(201,169,110,0.12)]'}`}>
+                {filteredGcs.map(g => (                  <div key={g.code} className={`relative rounded-2xl border p-5 overflow-hidden transition-all group ${g.used ? 'bg-[#141110] border-[#2e2518] opacity-70' : 'bg-[#181310] border-[#c9a96e]/30 hover:border-[#c9a96e]/55 hover:shadow-[0_8px_36px_rgba(201,169,110,0.12)]'}`}>
                     <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: g.used ? '#2e2518' : 'linear-gradient(90deg,#8a5f2e,#e8d4a8,#8a5f2e)' }} />
                     <div className="flex items-start justify-between mb-4">
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${g.used ? 'text-[#4a4238] border-[#2e2518]' : 'text-[#e8d4a8] border-[#c9a96e]/30 bg-[#c9a96e]/10'}`}>
@@ -2382,6 +2457,135 @@ export function AdminDashboard() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+        {tab === 'reviews' && (
+          <div className="space-y-4">
+            {/* ── Barra: pendientes / publicadas ── */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="inline-flex p-1 rounded-xl bg-[#181310] border border-[#2e2518] w-fit">
+                {([
+                  { id: 'pending', label: 'Pendientes' },
+                  { id: 'published', label: 'Publicadas' },
+                ] as const).map(f => (
+                  <button key={f.id} onClick={() => switchReviewFilter(f.id)}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${reviewFilter === f.id ? 'bg-[#c9a96e] text-[#0d0b0a]' : 'text-[#8a7d6e] hover:text-[#e8d4a8]'}`}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                {onlineReviews ? (
+                  <span className="font-mono text-[10px] uppercase tracking-widest px-2.5 py-2 rounded-full bg-[#8aab8a]/10 text-[#8aab8a] border border-[#8aab8a]/25">● Servidor</span>
+                ) : (
+                  <span className="font-mono text-[10px] uppercase tracking-widest px-2.5 py-2 rounded-full bg-[#2a2018] text-[#8a7d6e] border border-[#2e2518]">○ Sin conexión</span>
+                )}
+              </div>
+            </div>
+
+            {/* ── KPIs ── */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              {[
+                { label: reviewFilter === 'pending' ? 'Por moderar' : 'Publicadas', value: String(reviewTotal), sub: reviewFilter === 'pending' ? 'esperando revisión' : 'visibles en el sitio' },
+                { label: 'Rating promedio', value: reviewItems.length ? (reviewItems.reduce((a, p) => a + (p.rating ?? 0), 0) / reviewItems.length).toFixed(1) + ' ★' : '—', sub: 'promedio de esta página' },
+                { label: 'Con diseño', value: String(reviewItems.filter(p => p.design_name).length), sub: 'mencionan un diseño' },
+              ].map(k => (
+                <div key={k.label} className="bg-[#181310] border border-[#2e2518] rounded-2xl px-5 py-4">
+                  <p className="text-[#8a7d6e] text-[11px] font-mono uppercase tracking-widest">{k.label}</p>
+                  <p className="font-serif text-2xl text-[#f0ebe4] mt-1">{k.value}</p>
+                  <p className="text-[#c9a96e]/80 text-xs mt-0.5">{k.sub}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Estados: loading / error ── */}
+            {reviewsQuery.isLoading ? (
+              <div className="bg-[#181310] border border-[#2e2518] rounded-2xl py-14 text-center">
+                <p className="font-mono text-[#c9a96e] text-xs tracking-[0.3em] uppercase animate-pulse">Cargando reseñas…</p>
+              </div>
+            ) : reviewsQuery.isError ? (
+              <div role="alert" className="bg-[#181310] border border-[#d4613a]/30 rounded-2xl py-14 text-center px-6">
+                <p className="font-serif text-[#f0ebe4] text-lg">No se pudieron cargar las reseñas</p>
+                <p className="text-[#8a7d6e] text-xs mt-1 font-mono">{(reviewsQuery.error as Error)?.message ?? 'Error de conexión'}</p>
+                <button onClick={() => void reviewsQuery.refetch()}
+                  className="mt-4 px-4 py-2 bg-[#c9a96e] text-[#0d0b0a] text-xs font-semibold rounded-lg hover:bg-[#d4b87e] transition-colors">
+                  Reintentar
+                </button>
+              </div>
+            ) : reviewItems.length === 0 ? (
+              <div className="bg-[#181310] border border-[#2e2518] rounded-2xl py-14 text-center px-6">
+                <Star size={28} className="mx-auto text-[#2e2518] mb-3" />
+                <p className="font-serif text-[#8a7d6e] text-lg">
+                  {reviewFilter === 'pending' ? 'Sin reseñas pendientes' : 'Sin reseñas publicadas'}
+                </p>
+                <p className="text-[#4a4238] text-xs mt-1">
+                  {reviewFilter === 'pending'
+                    ? 'Las reseñas del formulario público aparecerán aquí para moderar.'
+                    : 'Aprueba una reseña pendiente para verla aquí y en el sitio.'}
+                </p>
+                <button onClick={() => switchReviewFilter(reviewFilter === 'pending' ? 'published' : 'pending')}
+                  className="mt-4 px-4 py-2 border border-[#2e2518] text-[#8a7d6e] text-xs rounded-lg hover:border-[#8a7d6e] transition-colors">
+                  Ver {reviewFilter === 'pending' ? 'publicadas' : 'pendientes'}
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                {reviewItems.map(p => (
+                  <div key={p.id} className="relative rounded-2xl border border-[#2e2518] bg-[#181310] p-5 overflow-hidden transition-all hover:border-[#c9a96e]/40">
+                    <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, transparent, #c9a96e, transparent)' }} />
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center font-serif text-sm shrink-0 border border-[#c9a96e]/40 text-[#e8d4a8]"
+                        style={{ background: 'linear-gradient(135deg,#2a2013,#14100a)' }}>
+                        {(p.author ?? p.title ?? '?')[0]?.toUpperCase() ?? '?'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[#f0ebe4] text-sm font-medium truncate">{p.author ?? p.title ?? 'Anónima'}</p>
+                        <div className="flex items-center gap-0.5 mt-1" aria-label={`Calificación ${p.rating ?? 0} de 5`}>
+                          {[1, 2, 3, 4, 5].map(n => (
+                            <Star key={n} size={12} className={(p.rating ?? 0) >= n ? 'fill-[#c9a96e] text-[#c9a96e]' : 'text-[#4a4238]'} />
+                          ))}
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded-full border shrink-0 ${reviewFilter === 'pending' ? 'bg-[#d4613a]/10 text-[#e08a6d] border-[#d4613a]/30' : 'bg-[#8aab8a]/10 text-[#8aab8a] border-[#8aab8a]/25'}`}>
+                        {reviewFilter === 'pending' ? 'Pendiente' : 'Publicada'}
+                      </span>
+                    </div>
+                    <p className="text-[#8a7d6e] text-sm leading-relaxed line-clamp-4 min-h-[3.5rem]">{p.excerpt ?? '—'}</p>
+                    {p.design_name && (
+                      <p className="text-[#c9a96e]/80 text-xs mt-2 font-mono truncate">Diseño: {p.design_name}</p>
+                    )}
+                    <div className="flex gap-2 mt-4">
+                      <Can code="blog.update">
+                        {reviewFilter === 'pending' ? (
+                          <button onClick={() => publishMut.mutate({ id: p.id, published: true })} disabled={publishMut.isPending}
+                            className="flex-1 py-2 text-xs font-semibold rounded-xl bg-[#8aab8a]/15 border border-[#8aab8a]/30 text-[#8aab8a] hover:bg-[#8aab8a]/25 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5">
+                            <Check size={13} /> Aprobar
+                          </button>
+                        ) : (
+                          <button onClick={() => publishMut.mutate({ id: p.id, published: false })} disabled={publishMut.isPending}
+                            className="flex-1 py-2 text-xs rounded-xl border border-[#2e2518] text-[#8a7d6e] hover:text-[#e8d4a8] hover:border-[#c9a96e]/40 disabled:opacity-50 transition-all">
+                            Ocultar
+                          </button>
+                        )}
+                      </Can>
+                      <Can code="blog.update">
+                        <button onClick={() => openEditReview(p)} title="Editar"
+                          className="w-10 flex items-center justify-center rounded-xl border border-transparent text-[#8a7d6e] hover:text-[#c9a96e] hover:bg-[#c9a96e]/10 hover:border-[#c9a96e]/30 transition-all">
+                          <Edit3 size={14} />
+                        </button>
+                      </Can>
+                      <Can code="blog.delete">
+                        <button onClick={() => setDeleteReviewModal({ open: true, id: p.id, name: p.author ?? p.title ?? `Reseña #${p.id}` })} title="Eliminar"
+                          className="w-10 flex items-center justify-center rounded-xl border border-transparent text-[#4a4238] hover:text-[#e08a6d] hover:bg-[#d4613a]/10 hover:border-[#d4613a]/30 transition-all">
+                          <Trash2 size={14} />
+                        </button>
+                      </Can>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Pagination page={reviewPage} total={reviewTotalPages} onChange={goReviewPage} count={reviewTotal} pageSize={REVIEW_PAGE_SIZE} />
           </div>
         )}
       </main>
@@ -2852,6 +3056,50 @@ export function AdminDashboard() {
         error={deleteClientError}
         onConfirm={confirmDeleteClient}
         pending={deleteClientMut.isPending}
+      />
+
+      {/* Edit review */}
+      <EditModalShell
+        open={editReviewId !== null}
+        onClose={() => { setEditReviewId(null); setEditReviewError(''); }}
+        title="Editar reseña"
+        eyebrow="Reseñas · Moderación"
+        error={editReviewError || null}
+        onSave={handleSaveReview}
+        pending={updatePostMut.isPending}
+      >
+        <div>
+          <label className="text-[#8a7d6e] text-xs font-mono uppercase tracking-widest block mb-1.5">Texto * (mín. 10)</label>
+          <textarea value={editReview.text} onChange={e => setEditReview(r => ({ ...r, text: e.target.value }))}
+            rows={4} maxLength={2000} placeholder="Texto de la reseña…" className={inputCls} />
+        </div>
+        <div>
+          <label className="text-[#8a7d6e] text-xs font-mono uppercase tracking-widest block mb-1.5">Calificación *</label>
+          <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map(n => (
+              <button key={n} type="button" onClick={() => setEditReview(r => ({ ...r, rating: n }))} aria-label={`${n} estrellas`}>
+                <Star size={26} className={n <= editReview.rating ? 'fill-[#c9a96e] text-[#c9a96e]' : 'text-[#4a4238] hover:text-[#8a7d6e]'} />
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="text-[#8a7d6e] text-xs font-mono uppercase tracking-widest block mb-1.5">Diseño (opcional)</label>
+          <input value={editReview.design_name} onChange={e => setEditReview(r => ({ ...r, design_name: e.target.value }))}
+            placeholder="Ej. Botanical Garden" maxLength={150} className={inputCls} />
+        </div>
+      </EditModalShell>
+
+      {/* Delete review */}
+      <ConfirmDeleteModal
+        open={deleteReviewModal.open}
+        onClose={() => setDeleteReviewModal({ open: false, id: null, name: '' })}
+        title="Eliminar reseña"
+        itemName={deleteReviewModal.name || undefined}
+        description="¿Eliminar esta reseña? Desaparecerá del panel y del sitio."
+        consequence="Esta acción no se puede deshacer."
+        onConfirm={confirmDeleteReview}
+        pending={deletePostMut.isPending}
       />
     </div>
   );
