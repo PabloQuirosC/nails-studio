@@ -22,6 +22,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm test
+      - name: npm audit (alta severidad, no bloquea)
+        run: npm audit --audit-level=high || true
 
   backend:
     runs-on: ubuntu-latest
@@ -33,7 +35,7 @@ jobs:
       APP_NAME: nails-studio
       ENV: test
       DATABASE_URL: sqlite://
-      SECRET_KEY: ci-clave-de-prueba-minimo-32-chars!!
+      SECRET_KEY: ${{ secrets.SECRET_KEY || 'ci-clave-de-prueba-minimo-32-chars!!' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -42,3 +44,5 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - run: python -m pytest -q
+      - name: pip-audit (no bloquea, solo reporta)
+        run: pip install pip-audit && pip-audit || true

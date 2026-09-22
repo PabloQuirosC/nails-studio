@@ -14,6 +14,15 @@ log = logging.getLogger("nails")
 _MAX = 5
 _WINDOW = 60
 
+# Topes por endpoint público (aislados por prefijo de clave).
+LIMITS: dict[str, tuple[int, int]] = {
+    "login": (5, 60),
+    "contact": (5, 60),
+    "booking": (8, 60),
+    "review": (5, 60),
+    "lookup": (10, 60),
+}
+
 _ATTEMPTS: dict[str, list[float]] = defaultdict(list)
 _redis = None
 _redis_warned = False
@@ -38,20 +47,21 @@ def _client():
         return None
 
 
-def login_allowed(key: str) -> bool:
+def login_allowed(key: str, limit: int = _MAX, window: int = _WINDOW) -> bool:
     client = _client()
     if client is None:
         now = time.monotonic()
-        window = [t for t in _ATTEMPTS[key] if now - t < _WINDOW]
-        _ATTEMPTS[key] = window
-        return len(window) < _MAX
+        bucket = [t for t in _ATTEMPTS[key] if now - t < window]
+        _ATTEMPTS[key] = bucket
+        return len(bucket) < limit
     try:
-        return int(client.get(f"login:{key}") or 0) < _MAX
-    except Exception:
-        return True  # fail-open ante caída de Redis: el login sigue funcionando
+        return int(client.get(f"login:{key}") or 0) < limit
+    except Exception as exc:
+        log.error("Throttle Redis caído: fail-closed en login (%s)", exc)
+        return False
 
 
-def login_hit(key: str) -> None:
+def login_hit(key: str, window: int = _WINDOW) -> None:
     client = _client()
     if client is None:
         _ATTEMPTS[key].append(time.monotonic())
@@ -59,10 +69,30 @@ def login_hit(key: str) -> None:
     try:
         pipe = client.pipeline()
         pipe.incr(f"login:{key}")
-        pipe.expire(f"login:{key}", _WINDOW)
+        pipe.expire(f"login:{key}", window)
         pipe.execute()
     except Exception:
         pass
+
+
+def check(bucket: str, key: str) -> bool:
+    """¿Permite un intento en el bucket (contact|booking|review|login)?"""
+    limit, window = LIMITS.get(bucket, (_MAX, _WINDOW))
+    return login_allowed(f"{bucket}|{key}", limit=limit, window=window)
+
+
+def hit(bucket: str, key: str) -> None:
+    _, window = LIMITS.get(bucket, (_MAX, _WINDOW))
+    login_hit(f"{bucket}|{key}", window=window)
+
+
+def client_ip(request) -> str:
+    """IP real tras proxy local: solo confía en X-Forwarded-For si el socket es privado/loopback."""
+    sock = request.client.host if request.client else "?"
+    xff = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    if xff and (sock.startswith(("127.", "10.", "192.168.")) or sock == "::1" or sock.startswith("172.")):
+        return xff[:64]
+    return sock
 
 
 def login_clear(key: str) -> None:

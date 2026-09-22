@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core import tokens
 from app.core.exceptions import TokenInvalid
+from app.infrastructure.db.base import UserStatus
 from app.infrastructure.db.session import get_db
 from app.infrastructure.models.rbac import User
 
@@ -40,6 +41,8 @@ def get_current_user(
     user = db.get(User, int(payload["sub"]))
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario no existe")
+    if user.status != UserStatus.ACTIVE:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario no activo")
     return user
 
 

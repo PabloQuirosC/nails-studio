@@ -1,4 +1,6 @@
 """Bcrypt + JWT (PyJWT). Corrige lo visto en dulce: política 8–72 explícita."""
+import unicodedata
+
 import bcrypt
 import jwt
 
@@ -8,21 +10,26 @@ _BCRYPT_MAX = 72
 _DUMMY_HASH = b"$2b$12$KIXxQG8b2a2mQvLg9Q0QQu8vLg9Q0QQu8vLg9Q0QQu8vLg9Q0QQu"
 
 
+def _norm(password: str) -> bytes:
+    """NFKC: la misma contraseña unicode siempre hashea igual."""
+    return unicodedata.normalize("NFKC", password).encode("utf-8")
+
+
 def validate_password_policy(password: str) -> None:
-    if not 8 <= len(password.encode("utf-8")) <= _BCRYPT_MAX:
+    if not 8 <= len(_norm(password)) <= _BCRYPT_MAX:
         raise ValueError("La contraseña debe tener entre 8 y 72 caracteres")
 
 
 def hash_password(password: str) -> str:
     validate_password_policy(password)
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode()
+    return bcrypt.hashpw(_norm(password), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
     try:
         if not hashed.startswith("$2"):
             return False
-        return bcrypt.checkpw(plain.encode("utf-8")[:_BCRYPT_MAX], hashed.encode())
+        return bcrypt.checkpw(_norm(plain)[:_BCRYPT_MAX], hashed.encode())
     except (ValueError, TypeError):
         return False
 

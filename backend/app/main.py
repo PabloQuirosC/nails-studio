@@ -29,10 +29,42 @@ app = FastAPI(title=settings.app_name, docs_url=None if settings.is_prod else "/
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next):
     """Correlación: cada request (sobre todo escritura) viaja con su request-id."""
-    rid = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:12]
+    import re
+    raw = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:12]
+    rid = raw if re.fullmatch(r"[A-Za-z0-9-]{1,64}", raw) else uuid.uuid4().hex[:12]
     request_id_ctx.set(rid)
     response = await call_next(request)
     response.headers["X-Request-ID"] = rid
+    return response
+
+_CSRF_EXEMPT = ("/api/v1/auth/login", "/api/v1/auth/refresh", "/healthz", "/docs", "/openapi.json")
+
+
+@app.middleware("http")
+async def csrf_middleware(request: Request, call_next):
+    """Anti-CSRF: las mutaciones /api/* exigen cabecera no-forjable por form simple.
+
+    Un <form> cross-site no puede añadir cabeceras custom sin preflight;
+    el frontend la envía siempre (X-Requested-With: fetch). Login/refresh
+    quedan exentos (aún no hay sesión que secuestrar + tienen throttle).
+    """
+    if (request.method in ("POST", "PUT", "PATCH", "DELETE")
+            and request.url.path.startswith("/api/")
+            and not request.url.path.startswith(_CSRF_EXEMPT)):
+        if request.headers.get("X-Requested-With", "").lower() not in ("fetch", "xmlhttprequest"):
+            return JSONResponse(status_code=403, content={"detail": "Falta cabecera X-Requested-With (posible CSRF)"})
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    """Cabeceras de endurecimiento (clickjacking, MIME-sniffing, referrer)."""
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    if settings.is_prod:
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return response
 
 app.add_middleware(
@@ -40,23 +72,23 @@ app.add_middleware(
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Request-ID"],
 )
 
 
 @app.exception_handler(NotFound)
 async def _404(_req, exc: NotFound):
-    return JSONResponse(404, {"detail": str(exc) or "No encontrado"})
+    return JSONResponse(status_code=404, content={"detail": str(exc) or "No encontrado"})
 
 
 @app.exception_handler(Conflict)
 async def _409(_req, exc: Conflict):
-    return JSONResponse(409, {"detail": str(exc)})
+    return JSONResponse(status_code=409, content={"detail": str(exc)})
 
 
 @app.exception_handler(ForbiddenOp)
 async def _400(_req, exc: ForbiddenOp):
-    return JSONResponse(400, {"detail": str(exc)})
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
 @app.get("/healthz")

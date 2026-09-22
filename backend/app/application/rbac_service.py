@@ -20,6 +20,27 @@ def _get_or_404(db: Session, model, obj_id: int, label: str):
     return obj
 
 
+def _active_admin_ids(db: Session) -> set[int]:
+    """IDs de usuarios ACTIVE con rol admin activo (case-insensitive)."""
+    rows = db.execute(
+        select(User.id)
+        .join(UserRole, UserRole.user_id == User.id)
+        .join(Role, Role.id == UserRole.role_id)
+        .where(func.lower(Role.name) == "admin",
+               UserRole.active.is_(True),
+               Role.active.is_(True),
+               User.status == UserStatus.ACTIVE)
+    ).all()
+    return {r[0] for r in rows}
+
+
+def _ensure_not_last_admin(db: Session, user_id: int) -> None:
+    admins = _active_admin_ids(db)
+    if user_id in admins and len(admins) <= 1:
+        logger.warning("Bloqueado: intento de dejar el sistema sin administradores (user_id=%s)", user_id)
+        raise ForbiddenOp("No se puede dejar el sistema sin administradores")
+
+
 # ── Users ──
 def create_user(db: Session, *, username: str, email: str, full_name: str, password: str) -> User:
     user = User(username=username.strip(), email=email.strip().lower(),
@@ -82,6 +103,7 @@ def update_user(db: Session, user_id: int, **fields) -> User:
 
 def delete_user(db: Session, user_id: int) -> None:
     user = _get_or_404(db, User, user_id, "Usuario")
+    _ensure_not_last_admin(db, user_id)
     logger.info("Usuario eliminado: %s (id=%s)", user.username, user.id)
     db.delete(user)
     db.commit()
@@ -102,6 +124,9 @@ def remove_role(db: Session, user_id: int, role_id: int) -> None:
     link = db.get(UserRole, (user_id, role_id))
     if link is None:
         raise NotFound("Asignación no encontrada")
+    role = _get_or_404(db, Role, role_id, "Rol")
+    if role.name.strip().lower() == "admin":
+        _ensure_not_last_admin(db, user_id)
     db.delete(link)
     db.commit()
     logger.info("Rol retirado: user_id=%s, role_id=%s", user_id, role_id)

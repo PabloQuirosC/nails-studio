@@ -18,6 +18,15 @@ def _slugify(text: str) -> str:
     return slug.strip("-") or "post"
 
 
+def _require_http_url(url: str | None) -> str | None:
+    if url is None:
+        return None
+    clean = url.strip()
+    if clean and not clean.startswith(("http://", "https://")):
+        raise Conflict("image_url debe ser http(s)")
+    return clean or None
+
+
 def _get_or_404(db: Session, post_id: int) -> Post:
     post = db.get(Post, post_id)
     if post is None:
@@ -63,6 +72,8 @@ def list_posts(db: Session, *, offset: int = 0, limit: int = 50, q: str = "",
 def create_post(db: Session, **fields) -> Post:
     if fields.get("kind", "articulo") not in KINDS:
         raise Conflict("kind inválido (articulo|testimonio|nosotros)")
+    if "image_url" in fields:
+        fields["image_url"] = _require_http_url(fields["image_url"])
     base = _slugify(fields["title"])
     slug, i = base, 2
     while db.scalar(select(Post).where(Post.slug == slug)):
@@ -81,6 +92,8 @@ def update_post(db: Session, post_id: int, **fields) -> Post:
         raise Conflict("kind inválido (articulo|testimonio|nosotros)")
     # Se aplica todo lo recibido, incluido None (= vaciar el campo).
     # El router usa exclude_unset: lo no enviado no llega aquí.
+    if "image_url" in fields:
+        fields["image_url"] = _require_http_url(fields["image_url"])
     for key, value in fields.items():
         if hasattr(post, key):
             setattr(post, key, value)

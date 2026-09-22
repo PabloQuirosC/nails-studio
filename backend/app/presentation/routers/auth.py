@@ -49,11 +49,12 @@ def _audit(db, *, username: str, user_id: int | None, success: bool, request: Re
 
 @router.post("/login", response_model=schemas.TokenOut)
 def login(body: schemas.LoginIn, request: Request, response: Response, db: Session = Depends(get_db)):
-    key = f"{request.client.host if request.client else '?'}|{body.username.lower()}"
-    if not rate_limit.login_allowed(key):
+    ip = rate_limit.client_ip(request)
+    key = f"{ip}|{body.username.lower()}"
+    if not rate_limit.check("login", key):
         logger.warning("Login bloqueado por throttle: %s", key)
         raise HTTPException(status_code=429, detail="Demasiados intentos, espera un minuto")
-    rate_limit.login_hit(key)
+    rate_limit.hit("login", key)
     try:
         result = auth_service.login(db, body.username, body.password)
     except (InvalidCredentials, InactiveUser):
@@ -64,7 +65,7 @@ def login(body: schemas.LoginIn, request: Request, response: Response, db: Sessi
             detail="Credenciales inválidas",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    rate_limit.login_clear(key)
+    rate_limit.login_clear(f"login|{key}")
     _audit(db, username=body.username, user_id=int(result["user_id"]), success=True, request=request)
     response.set_cookie(ACCESS_COOKIE, result["access_token"], **_cookie_params(result["expires_in"]))
     response.set_cookie(REFRESH_COOKIE, result["refresh_token"],

@@ -2,8 +2,15 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFound
+from app.core.exceptions import Conflict, NotFound
 from app.infrastructure.models.contact import ContactInfo, ContactMessage, ContactSocial
+
+
+def _require_http_url(url: str) -> str:
+    clean = (url or "").strip()
+    if not clean.startswith(("http://", "https://")):
+        raise Conflict("La URL debe ser http(s)")
+    return clean
 
 
 def create_message(db: Session, *, name: str, email: str, phone: str | None, message: str) -> ContactMessage:
@@ -77,7 +84,7 @@ def list_socials(db: Session) -> list[ContactSocial]:
 
 
 def create_social(db: Session, *, label: str, url: str, icon: str) -> ContactSocial:
-    social = ContactSocial(label=label.strip(), url=url.strip(), icon=(icon or "web").strip().lower() or "web")
+    social = ContactSocial(label=label.strip(), url=_require_http_url(url), icon=(icon or "web").strip().lower() or "web")
     db.add(social)
     db.commit()
     db.refresh(social)
@@ -90,6 +97,8 @@ def update_social(db: Session, social_id: int, **fields) -> ContactSocial:
         raise NotFound("Red social no encontrada")
     for key, value in fields.items():
         if value is not None and hasattr(social, key):
+            if key == "url" and isinstance(value, str):
+                value = _require_http_url(value)
             setattr(social, key, value.strip() if isinstance(value, str) else value)
     db.commit()
     db.refresh(social)

@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     frontend_origin: str = "http://127.0.0.1:5173"
     allowed_origins: str = "http://127.0.0.1:5173"
 
+    resend_api_key: str = ""
+    email_from: str = "Nails Studio <onboarding@resend.dev>"
+
     admin_username: str = "admin"
     admin_email: str = "admin@nailsstudio.com"
     admin_password: str = ""
@@ -32,6 +35,8 @@ class Settings(BaseSettings):
                 raise ValueError("SECRET_KEY debe tener >= 32 caracteres en producción")
             if not self.database_url:
                 raise ValueError("DATABASE_URL es obligatoria en producción")
+            if "*" in self.cors_origins:
+                raise ValueError("CORS con '*' es incompatible con credenciales en producción")
         return self
 
     @property

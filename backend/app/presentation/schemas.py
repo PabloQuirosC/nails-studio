@@ -8,7 +8,7 @@ from app.infrastructure.db.base import PermissionType, UserStatus
 
 class LoginIn(BaseModel):
     username: str = Field(min_length=1, max_length=100)
-    password: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=1, max_length=72)
 
 
 class TokenOut(BaseModel):

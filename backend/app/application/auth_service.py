@@ -96,5 +96,26 @@ def logout(db: Session, refresh_jwt: str | None) -> None:
 def change_password(db: Session, user: User, new_password: str) -> None:
     user.password_hash = hash_password(new_password)
     db.add(user)
+    # Las sesiones existentes mueren: revoca todos los refresh vivos del usuario.
+    for tok in db.scalars(
+        select(RefreshToken).where(RefreshToken.user_id == user.id, RefreshToken.revoked.is_(False))
+    ).all():
+        tok.revoked = True
+        db.add(tok)
     db.commit()
-    logger.info("Contraseña actualizada para el usuario: %s (id=%s)", user.username, user.id)
+    logger.info("Contraseña actualizada y sesiones revocadas: %s (id=%s)", user.username, user.id)
+
+
+def purge_login_audits(db: Session, *, days: int = 90) -> int:
+    """Retención GDPR: borra auditorías de login más viejas que `days`. Retorna borrados."""
+    from datetime import datetime, timedelta
+
+    from app.infrastructure.models.rbac import LoginAudit
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=max(days, 1))
+    rows = db.scalars(select(LoginAudit).where(LoginAudit.created_at < cutoff)).all()
+    for row in rows:
+        db.delete(row)
+    db.commit()
+    logger.info("Purga de login_audits: %s registros (>%s días)", len(rows), days)
+    return len(rows)
