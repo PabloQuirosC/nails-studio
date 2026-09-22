@@ -38,6 +38,7 @@ def test_base_template_escapa_html():
 def test_send_email_sin_key_retorna_false(monkeypatch):
     from app.core import email as mail
 
+    monkeypatch.setattr(mail.settings, "email_provider", "resend")
     monkeypatch.setattr(mail.settings, "resend_api_key", "")
     monkeypatch.setattr(mail.settings, "email_from", "Nails Studio <onboarding@resend.dev>")
     assert mail.send_email(to="a@x.com", subject="hola", html="<p>hola</p>") is False
@@ -113,6 +114,7 @@ def test_get_admin_emails_solo_activos_con_rol_admin():
 def test_notify_giftcard_y_review_no_lanzan(monkeypatch):
     from app.core import email as mail
 
+    monkeypatch.setattr(mail.settings, "email_provider", "resend")
     monkeypatch.setattr(mail.settings, "resend_api_key", "")
     # Sin key debe retornar False, nunca lanzar
     assert mail.notify_giftcard_redeemed(code="NS-GC-AAA", amount=100,
@@ -120,3 +122,54 @@ def test_notify_giftcard_y_review_no_lanzan(monkeypatch):
                                         used_at="hoy", actor="admin") is False
     assert mail.notify_review_approved(author="Ana", rating=5,
                                        text="Lindo", post_id=1) is False
+
+
+def test_send_email_por_smtp_con_mock(monkeypatch):
+    import smtplib
+
+    from app.core import email as mail
+
+    sent = {}
+
+    class _FakeSMTP:
+        def __init__(self, *a, **k):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def starttls(self):
+            sent["tls"] = True
+
+        def login(self, user, password):
+            sent["login"] = (user, bool(password))
+
+        def send_message(self, msg):
+            sent["to"] = msg["To"]
+            sent["subject"] = msg["Subject"]
+            sent["cid"] = "cid:nails-logo" in msg.get_body(("html",)).get_content()
+
+    monkeypatch.setattr(smtplib, "SMTP", _FakeSMTP)
+    monkeypatch.setattr(mail.settings, "email_provider", "smtp")
+    monkeypatch.setattr(mail.settings, "smtp_user", "nails@gmail.com")
+    monkeypatch.setattr(mail.settings, "smtp_password", "xxxx-app-pass")
+    monkeypatch.setattr(mail.settings, "smtp_server", "smtp.gmail.com")
+    monkeypatch.setattr(mail.settings, "smtp_from", "Nails Studio <nails@gmail.com>")
+    html = mail.base_template(title="t", heading="h", intro="i", rows=[("A", "B")])
+    assert mail.send_email(to=["a@x.com", "b@x.com"], subject="Hola", html=html) is True
+    assert sent["to"] == "a@x.com, b@x.com"
+    assert sent["tls"] is True
+    assert sent["cid"] is True
+
+
+def test_send_email_smtp_sin_config_retorna_false(monkeypatch):
+    from app.core import email as mail
+
+    monkeypatch.setattr(mail.settings, "email_provider", "smtp")
+    monkeypatch.setattr(mail.settings, "smtp_user", "")
+    monkeypatch.setattr(mail.settings, "smtp_password", "")
+    monkeypatch.setattr(mail.settings, "smtp_server", "")
+    assert mail.send_email(to="a@x.com", subject="x", html="<p>x</p>") is False

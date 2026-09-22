@@ -23,6 +23,15 @@ class Settings(BaseSettings):
 
     resend_api_key: str = ""
     email_from: str = "Nails Studio <onboarding@resend.dev>"
+    email_provider: str = "auto"  # auto|smtp|resend
+
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_server: str = ""
+    smtp_port: int = 587
+    smtp_from: str = ""
+    smtp_use_tls: bool = True
+    smtp_timeout: int = 10
 
     admin_username: str = "admin"
     admin_email: str = "admin@nailsstudio.com"

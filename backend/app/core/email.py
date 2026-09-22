@@ -106,6 +106,55 @@ def _client() -> tuple[bool, str]:
     return True, sender
 
 
+def _smtp_configured() -> bool:
+    return bool(
+        (settings.smtp_user or "").strip()
+        and (settings.smtp_password or "").strip()
+        and (settings.smtp_server or "").strip()
+    )
+
+
+def _smtp_sender() -> str:
+    return (settings.smtp_from or "").strip() or (settings.smtp_user or "").strip()
+
+
+def _send_smtp(*, sender: str, dests: list[str], subject: str, html: str,
+               reply_to: str | None = None) -> None:
+    """SMTP (Gmail con App Password). Lanza excepción si falla."""
+    import smtplib
+    from email.message import EmailMessage
+    from email.utils import formatdate, make_msgid
+
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = ", ".join(dests)
+    msg["Date"] = formatdate(localtime=True)
+    msg["Message-ID"] = make_msgid(domain="gmail.com")
+    if reply_to:
+        msg["Reply-To"] = reply_to
+    msg.set_content("Nails Studio: mira este correo en un cliente con soporte HTML.")
+    msg.add_alternative(html, subtype="html")
+    if f"cid:{LOGO_CID}" in html:
+        logo = _logo_b64()
+        if logo:
+            import base64 as _b64
+
+            msg.get_payload()[1].add_related(
+                _b64.b64decode(logo), maintype="image", subtype="jpeg",
+                cid=f"<{LOGO_CID}>", filename="logo.jpg",
+            )
+    server = (settings.smtp_server or "").strip()
+    port = int(settings.smtp_port or 587)
+    timeout = int(settings.smtp_timeout or 10)
+    with smtplib.SMTP(server, port, timeout=timeout) as smtp:
+        if settings.smtp_use_tls:
+            smtp.starttls()
+        smtp.login((settings.smtp_user or "").strip(),
+                   (settings.smtp_password or "").strip().replace(" ", ""))
+        smtp.send_message(msg)
+
+
 def get_admin_emails(db) -> list[str]:
     """Emails de todos los usuarios ADMIN activos. Nunca lanza (retorna [])."""
     try:
@@ -148,16 +197,33 @@ def _admin_dests(explicit: list[str] | None) -> list[str]:
 
 
 def send_email(*, to: str | list[str], subject: str, html: str, reply_to: str | None = None) -> bool:
-    """Envía un correo. Retorna True si Resend aceptó, False si se omitió/falló."""
-    ok, sender = _client()
-    if not ok:
-        return False
+    """Envía un correo. Retorna True si fue aceptado, False si se omitió/falló.
+
+    Proveedor: EMAIL_PROVIDER=auto|smtp|resend. En auto se usa SMTP si está
+    configurado (Gmail) y si no Resend.
+    """
     dests = [to] if isinstance(to, str) else list(to)
     dests = [d.strip() for d in dests if d and d.strip()]
     if not dests:
         logger.warning("send_email sin destinatarios: subject=%s", subject)
         return False
+    provider = (settings.email_provider or "auto").strip().lower()
+    want_smtp = provider == "smtp" or (provider == "auto" and _smtp_configured())
     try:
+        if want_smtp:
+            if not _smtp_configured():
+                logger.warning("EMAIL_PROVIDER=smtp pero falta SMTP_USER/PASSWORD/SERVER")
+                return False
+            sender = _smtp_sender()
+            if not sender:
+                logger.warning("SMTP_FROM/SMTP_USER ausente: correo omitido")
+                return False
+            _send_smtp(sender=sender, dests=dests, subject=subject, html=html, reply_to=reply_to)
+            logger.info("Correo enviado vía SMTP: to=%s subject=%s", ",".join(dests), subject)
+            return True
+        ok, sender = _client()
+        if not ok:
+            return False
         import resend  # import local: tests sin red no requieren el paquete hasta enviar
 
         resend.api_key = settings.resend_api_key.strip()
@@ -173,7 +239,7 @@ def send_email(*, to: str | list[str], subject: str, html: str, reply_to: str | 
         logger.info("Correo enviado vía Resend: to=%s subject=%s", ",".join(dests), subject)
         return True
     except Exception as exc:  # best-effort: el correo nunca tumba la request
-        logger.warning("Resend falló (to=%s subject=%s): %s", ",".join(dests), subject, exc)
+        logger.warning("Envío falló (to=%s subject=%s): %s", ",".join(dests), subject, exc)
         return False
 
 
