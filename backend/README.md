@@ -39,14 +39,26 @@ app/
 cd backend
 pip install -r requirements.txt
 cp .env.example .env   # rellenar (SECRET_KEY ≥ 32, DATABASE_URL pooler 6543)
+alembic upgrade head   # migraciones (incluye 0007_contact: buzón + datos)
 python -m app.infrastructure.seed   # crea módulos, permisos, rol ADMIN y admin
+python -m app.infrastructure.seed_studio  # catálogo, clientas demo, blog, nosotros
 uvicorn app.main:app --reload --port 8000
 ```
 
 Endpoints: `POST /api/v1/auth/login|refresh|logout`, `GET /api/v1/auth/me`,
 `GET /api/v1/auth/audits` (ADMIN), `CRUD /api/v1/usuarios` (paginado `{items,total}`
 + filtros `?q=&status=&role=`), `CRUD /api/v1/roles`, `GET /api/v1/permisos|modulos`,
-`CRUD /api/v1/giftcards` (código único en servidor, canje `PUT /{code}`).
+`CRUD /api/v1/giftcards` (código único en servidor, canje `PUT /{code}`),
+blog/testimonios/nosotros `GET /api/v1/posts?kind=` (público, solo publicados),
+`GET /api/v1/posts/admin/todos` + `POST|PUT|DELETE /api/v1/posts/{id}` (staff, `blog.*`),
+contacto `GET /api/v1/contact/info` (público) + `POST /api/v1/contact/messages`
+(público, throttle IP) + gestión staff (`contacto.read/update/delete`),
+reservas `POST /api/v1/appointments/public` (público, throttle IP, crea clienta si no
+existe, siempre `pending` con anti-solape) + `CRUD /api/v1/appointments` (staff).
+
+> Tras actualizar: `alembic upgrade head` y re-correr `seed.py` (crea el módulo
+> `CONTACTO` y sus permisos para el rol ADMIN). `seed_studio.py` es idempotente
+> (upsert por slug/teléfono): siembra historia + valores de Nosotros.
 
 ## Mejoras futuras aplicadas (2026-09-18)
 

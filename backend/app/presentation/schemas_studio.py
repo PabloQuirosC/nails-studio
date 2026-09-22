@@ -117,6 +117,17 @@ class AppointmentPage(BaseModel):
     total: int
 
 
+class PublicBookingCreate(BaseModel):
+    """Reserva desde la web pública (sin auth, con throttle por IP)."""
+    name: str = Field(min_length=2, max_length=200)
+    phone: str = Field(min_length=5, max_length=40)
+    email: str | None = Field(default=None, max_length=255)
+    design_id: int | None = None
+    starts_at: datetime
+    ends_at: datetime
+    notes: str | None = Field(default=None, max_length=2000)
+
+
 # ── Clientas ──
 class ClientCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)

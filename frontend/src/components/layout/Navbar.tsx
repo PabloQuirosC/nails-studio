@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router';
-import { Menu, X, Sparkles } from 'lucide-react';
+import { Menu, X, Sparkles, ChevronRight } from 'lucide-react';
 
 const LINKS = [
   { to: '/catalogo', label: 'Catálogo' },
@@ -15,24 +15,26 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const location = useLocation();
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
+  /* Estado de scroll sin listeners: un sentinel en flujo avisa vía IntersectionObserver. */
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([entry]) => setScrolled(!entry.isIntersecting), { threshold: 0 });
+    io.observe(el);
+    return () => io.disconnect();
   }, []);
 
   useEffect(() => setOpen(false), [location]);
 
   return (
     <>
-      {/* Top announcement bar */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-[#c9a96e] text-[#080706] text-center py-1.5 text-xs font-medium tracking-wide">
-        ✦ Reserva tu cita ahora — Arte que dura, técnica que cuida ✦
-      </div>
+      {/* Sentinel en flujo: sale del viewport al hacer scroll */}
+      <div ref={sentinelRef} aria-hidden="true" className="absolute top-0 left-0 h-12 w-px pointer-events-none" />
 
       <header
-        className={`fixed top-8 left-0 right-0 z-50 transition-all duration-500 ${
+        className={`fixed top-0 left-0 right-0 z-50 transition-[background-color,box-shadow,border-color] duration-200 ease-out ${
           scrolled
             ? 'glass shadow-[0_8px_32px_rgba(0,0,0,0.5)]'
             : 'bg-transparent'
@@ -41,12 +43,12 @@ export function Navbar() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           {/* Logo */}
           <Link to="/" className="group flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full border border-[#c9a96e]/40 flex items-center justify-center group-hover:border-[#c9a96e] transition-colors">
-              <Sparkles size={12} className="text-[#c9a96e]" />
+            <div className="w-7 h-7 rounded-full border border-[#f2d29b]/40 flex items-center justify-center group-hover:border-[#f2d29b] transition-colors">
+              <Sparkles size={12} className="text-[#f2d29b]" />
             </div>
             <span className="font-serif text-[19px] tracking-wide">
               <span className="text-gradient-subtle">Nails</span>
-              <span className="text-[#f0ebe4]"> Studio</span>
+              <span className="text-[#faf7f0]"> Studio</span>
             </span>
           </Link>
 
@@ -58,14 +60,15 @@ export function Navbar() {
                 <Link
                   key={l.to}
                   to={l.to}
-                  className={`text-[13px] tracking-wide relative transition-colors duration-200 ${
-                    active ? 'text-[#c9a96e]' : 'text-[#7a6e60] hover:text-[#f0ebe4]'
+                  className={`text-[13px] tracking-wide relative py-1 transition-colors duration-200 ${
+                    active ? 'text-[#f2d29b]' : 'text-[#a29885] hover:text-[#faf7f0]'
                   }`}
                 >
                   {l.label}
-                  {active && (
-                    <span className="absolute -bottom-0.5 left-0 right-0 h-px bg-gradient-to-r from-[#c9a96e] to-transparent" />
-                  )}
+                  <span
+                    aria-hidden="true"
+                    className={`absolute -bottom-0.5 left-0 right-0 h-px origin-left bg-gradient-to-r from-[#f2d29b] to-transparent transition-transform duration-200 ease-out ${active ? 'scale-x-100' : 'scale-x-0'}`}
+                  />
                 </Link>
               );
             })}
@@ -73,8 +76,8 @@ export function Navbar() {
 
           {/* Desktop CTA */}
           <div className="hidden lg:flex items-center gap-4">
-            <Link to="/referidos" className="text-[13px] text-[#7a6e60] hover:text-[#c9a96e] transition-colors">
-              Gift Cards
+            <Link to="/referidos" className="text-[13px] text-[#a29885] hover:text-[#f2d29b] transition-colors">
+              Referidos
             </Link>
             <Link to="/reservas" className="btn-primary !py-2.5 !px-5 !text-[13px]">
               Reservar Cita
@@ -83,7 +86,10 @@ export function Navbar() {
 
           {/* Mobile toggle */}
           <button
-            className="lg:hidden w-9 h-9 flex items-center justify-center text-[#7a6e60] hover:text-[#f0ebe4] transition-colors"
+            type="button"
+            aria-expanded={open}
+            aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
+            className="lg:hidden w-9 h-9 flex items-center justify-center text-[#a29885] hover:text-[#faf7f0] active:scale-[0.97] transition-[transform,color] duration-150 ease-out"
             onClick={() => setOpen(o => !o)}
           >
             {open ? <X size={20} /> : <Menu size={20} />}
@@ -92,21 +98,21 @@ export function Navbar() {
 
         {/* Mobile menu */}
         {open && (
-          <div className="lg:hidden glass border-t border-[#231e14] animate-fade-in">
+          <div className="lg:hidden glass border-t border-[#3a2f1e] animate-fade-in">
             <div className="px-6 py-6 flex flex-col gap-1">
               {LINKS.map((l, i) => (
                 <Link
                   key={l.to}
                   to={l.to}
-                  className="flex items-center justify-between py-3 border-b border-[#231e14] text-[#7a6e60] hover:text-[#f0ebe4] text-sm transition-colors"
-                  style={{ animationDelay: `${i * 40}ms` }}
+                  className="animate-fade-in flex items-center justify-between py-3 border-b border-[#3a2f1e] text-[#a29885] hover:text-[#faf7f0] active:text-[#f2d29b] text-sm transition-colors duration-200"
+                  style={{ animationDelay: `${i * 30}ms` }}
                 >
                   {l.label}
-                  <span className="text-[#231e14] text-xs">→</span>
+                  <ChevronRight size={14} className="text-[#6b6355]" aria-hidden="true" />
                 </Link>
               ))}
-              <Link to="/referidos" className="mt-3 flex items-center gap-2 text-[#c9a96e] text-sm py-2">
-                Gift Cards & Referidos
+              <Link to="/referidos" className="mt-3 flex items-center gap-2 text-[#f2d29b] text-sm py-2">
+                Referidos
               </Link>
               <Link to="/reservas" className="btn-primary mt-2 !w-full">
                 Reservar Cita

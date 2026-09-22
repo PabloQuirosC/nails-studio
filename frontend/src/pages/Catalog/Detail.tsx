@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router';
-import { ArrowLeft, Clock, Star, Layers } from 'lucide-react';
+import { ArrowLeft, Clock, Layers } from 'lucide-react';
 import { DESIGNS, CATEGORIES } from '../../data';
 import { usePublicCategories, usePublicDesign } from '../../features/catalog/public-api';
 
@@ -28,10 +28,11 @@ export function DesignDetail() {
     : DESIGNS.find(d => d.id === Number(id));
 
   if (!design) return (
-    <div className="min-h-screen pt-32 flex items-center justify-center text-center px-6">
+    <div className="min-h-dvh pt-32 flex items-center justify-center text-center px-6">
       <div>
-        <p className="font-serif text-3xl text-[#f0ebe4] mb-3">Diseño no encontrado</p>
-        <Link to="/catalogo" className="text-[#c9a96e] hover:underline">← Volver al catálogo</Link>
+        <p className="font-serif text-3xl text-[#faf7f0] tracking-tight mb-3">Diseño no encontrado</p>
+        <p className="text-[#b3a893] text-sm leading-relaxed max-w-[52ch] mx-auto mb-6">Es posible que se haya retirado del catálogo.</p>
+        <Link to="/catalogo" className="btn-outline">Volver al catálogo</Link>
       </div>
     </div>
   );
@@ -39,78 +40,76 @@ export function DesignDetail() {
   const cat = liveCats.find(c => c.id === design.category);
 
   return (
-    <div className="min-h-screen pt-24 px-6 pb-20">
+    <div className="min-h-dvh pt-24 px-6 pb-20">
       <div className="max-w-6xl mx-auto">
-        <Link to="/catalogo" className="inline-flex items-center gap-2 text-[#8a7d6e] hover:text-[#c9a96e] text-sm mb-8">
-          <ArrowLeft size={14} /> Catálogo
+        <Link
+          to={design.category ? `/catalogo?categoria=${design.category}` : '/catalogo'}
+          className="inline-flex items-center gap-2 text-[#b3a893] hover:text-[#f2d29b] active:text-[#f2d29b] text-sm mb-8 transition-colors duration-200"
+        >
+          <ArrowLeft size={14} /> {cat?.name ?? 'Catálogo'}
         </Link>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           <div>
-            <img src={design.image} alt={design.name} className="w-full aspect-square object-cover rounded-lg" />
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              {[design.image, design.image, design.image].map((img, i) => (
-                <img key={i} src={img} alt="" className="aspect-square object-cover rounded opacity-60 hover:opacity-100 transition-opacity cursor-pointer" />
-              ))}
+            <div className="rounded-2xl overflow-hidden border border-[#3a2f1e]">
+              <img src={design.image} alt={design.name} className="w-full aspect-[4/5] object-cover" />
             </div>
           </div>
           <div className="flex flex-col gap-6">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <span className="px-2 py-0.5 bg-[#2a2018] text-[#8a7d6e] text-xs rounded font-mono">{cat?.name}</span>
-                <span className="px-2 py-0.5 bg-[#2a2018] text-[#8a7d6e] text-xs rounded font-mono">{design.complexity}</span>
+                <span className="px-2 py-0.5 bg-[#332a1d] text-[#b3a893] text-xs rounded font-mono">{cat?.name}</span>
+                <span className="px-2 py-0.5 bg-[#332a1d] text-[#b3a893] text-xs rounded font-mono">{design.complexity}</span>
               </div>
-              <h1 className="font-serif text-4xl text-[#f0ebe4] mb-3">{design.name}</h1>
-              <p className="text-[#8a7d6e] leading-relaxed">{design.description}</p>
+              <h1 className="font-serif text-4xl sm:text-5xl text-[#faf7f0] tracking-tighter mb-3">{design.name}</h1>
+              <p className="text-[#b3a893] leading-[1.6] max-w-[65ch]">{design.description}</p>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 py-6 border-y border-[#2e2518]">
-              <div>
-                <p className="text-[#8a7d6e] text-xs font-mono mb-1">Precio</p>
-                <p className="text-[#c9a96e] font-serif text-2xl">desde ₡{design.price.toLocaleString()}</p>
+            <dl className="divide-y divide-[#3a2f1e] border-y border-[#3a2f1e]">
+              <div className="flex items-center justify-between py-4">
+                <dt className="text-[#b3a893] text-xs font-mono uppercase tracking-widest">Precio</dt>
+                <dd className="text-[#f2d29b] font-serif text-2xl">desde ₡{design.price.toLocaleString()}</dd>
               </div>
-              <div>
-                <p className="text-[#8a7d6e] text-xs font-mono mb-1">Duración</p>
-                <div className="flex items-center gap-1.5 text-[#f0ebe4]">
-                  <Clock size={14} className="text-[#c9a96e]" /> {design.duration} min
-                </div>
+              <div className="flex items-center justify-between py-4">
+                <dt className="text-[#b3a893] text-xs font-mono uppercase tracking-widest">Duración</dt>
+                <dd className="flex items-center gap-1.5 text-[#faf7f0]">
+                  <Clock size={14} className="text-[#f2d29b]" aria-hidden="true" /> {design.duration} min
+                </dd>
               </div>
-              <div>
-                <p className="text-[#8a7d6e] text-xs font-mono mb-1">Ocasión</p>
-                <p className="text-[#f0ebe4] text-sm">{design.occasion}</p>
+              <div className="flex items-center justify-between py-4">
+                <dt className="text-[#b3a893] text-xs font-mono uppercase tracking-widest">Ocasión</dt>
+                <dd className="text-[#faf7f0] text-sm">{design.occasion}</dd>
               </div>
-            </div>
+            </dl>
 
             <div>
-              <p className="text-[#8a7d6e] text-xs font-mono mb-2 uppercase tracking-widest flex items-center gap-1.5">
+              <p className="text-[#b3a893] text-xs font-mono mb-2 uppercase tracking-widest flex items-center gap-1.5">
                 <Layers size={12} /> Técnica
               </p>
-              <p className="text-[#c8bfb0] text-sm leading-relaxed">{design.technique}</p>
+              <p className="text-[#d8cfbf] text-sm leading-relaxed">{design.technique}</p>
             </div>
 
             <div className="flex flex-wrap gap-2">
               {design.tags.map(tag => (
-                <span key={tag} className="px-3 py-1 bg-[#2a2018] text-[#8a7d6e] text-xs rounded-full">#{tag}</span>
+                <span key={tag} className="px-3 py-1 bg-[#332a1d] text-[#b3a893] text-xs rounded-full">#{tag}</span>
               ))}
             </div>
 
             <div className="flex gap-3 mt-auto">
               <Link
                 to={`/reservas?design=${design.id}`}
-                className="flex-1 py-3.5 bg-[#c9a96e] text-[#0d0b0a] font-medium rounded text-center hover:bg-[#d4b87e] transition-colors"
+                className="btn-primary flex-1 focus-visible:outline-2 focus-visible:outline-[#f2d29b] focus-visible:outline-offset-2"
               >
                 Reservar este diseño
               </Link>
-              <Link
-                to={`/visualizador`}
-                className="px-4 py-3.5 border border-[#c9a96e]/50 text-[#c9a96e] rounded hover:bg-[#c9a96e]/10 transition-colors text-sm"
-              >
-                Ver en 3D
-              </Link>
             </div>
 
-            <div className="flex items-center gap-2 pt-2">
-              {[1,2,3,4,5].map(s => <Star key={s} size={14} className="fill-[#c9a96e] text-[#c9a96e]" />)}
-              <span className="text-[#8a7d6e] text-xs">(48 reseñas)</span>
+            <div className="flex items-center gap-x-5 gap-y-2 pt-2 flex-wrap">
+              {['Materiales certificados', 'Artistas profesionales'].map(t => (
+                <span key={t} className="flex items-center gap-2 text-[#a29885] text-xs">
+                  <span className="w-1 h-1 rounded-full bg-[#f2d29b] shrink-0" aria-hidden="true" />
+                  {t}
+                </span>
+              ))}
             </div>
           </div>
         </div>

@@ -17,8 +17,8 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (!hydrated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#080706]">
-        <p className="font-mono text-[#c9a96e] text-xs tracking-[0.3em] uppercase animate-pulse">Verificando sesión…</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#060505]">
+        <p className="font-mono text-[#f2d29b] text-xs tracking-[0.3em] uppercase animate-pulse">Verificando sesión…</p>
       </div>
     );
   }
@@ -31,8 +31,8 @@ export function RequirePermission({ code, children }: { code: string; children: 
   if (!hasPermission(user, code)) {
     return (
       <div className="rounded-2xl border border-[#d4613a]/30 bg-[#d4613a]/[0.06] p-6 text-center">
-        <p className="font-serif text-lg text-[#f0ebe4]">Sin permiso</p>
-        <p className="text-[#8a7d6e] text-xs mt-1 font-mono">Requiere {code}</p>
+        <p className="font-serif text-lg text-[#faf7f0]">Sin permiso</p>
+        <p className="text-[#b3a893] text-xs mt-1 font-mono">Requiere {code}</p>
       </div>
     );
   }

@@ -77,12 +77,34 @@ export interface PublicPost {
   created_at?: string;
 }
 
-export function usePublicPosts(kind: 'articulo' | 'testimonio') {
+export function usePublicPosts(kind: 'articulo' | 'testimonio' | 'nosotros', category = '') {
   return useQuery({
-    queryKey: ['public', 'posts', kind],
+    queryKey: ['public', 'posts', kind, category],
     queryFn: () =>
-      apiFetch<Page<PublicPost>>(`/api/v1/posts?limit=100&kind=${kind}`, {
-        message: kind === 'articulo' ? 'Cargando blog…' : 'Cargando testimonios…',
+      apiFetch<Page<PublicPost>>(
+        `/api/v1/posts?limit=100&kind=${kind}${category ? `&category=${encodeURIComponent(category)}` : ''}`,
+        {
+          message: kind === 'articulo' ? 'Cargando blog…' : kind === 'nosotros' ? 'Cargando nosotros…' : 'Cargando testimonios…',
+        },
+      ),
+    retry: 1,
+    staleTime: 120_000,
+  });
+}
+
+export interface PublicBlogCategory {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export function usePublicBlogCategories() {
+  return useQuery({
+    queryKey: ['public', 'post-categories'],
+    queryFn: () =>
+      apiFetch<PublicBlogCategory[]>('/api/v1/posts/categories', {
+        message: 'Cargando categorías…',
+        block: false,
       }),
     retry: 1,
     staleTime: 120_000,

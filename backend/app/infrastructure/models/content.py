@@ -27,3 +27,12 @@ class Post(Base):
     design_name: Mapped[str | None] = mapped_column(String(150))
     published: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class PostCategory(Base):
+    """Categorías administrables del blog (se asocian por nombre en Post.category)."""
+    __tablename__ = "post_categories"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(60), unique=True, index=True)
+    slug: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

@@ -127,6 +127,71 @@ export function useRolePermissions(roleId: number | null) {
   });
 }
 
+export function useCreateRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { name: string; description?: string }) =>
+      apiFetch<BackendRole>('/api/v1/roles', {
+        method: 'POST', body: JSON.stringify(input), message: 'Creando rol…',
+      }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin', 'roles'] }); },
+  });
+}
+
+export function useDeleteRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<{ detail: string }>(`/api/v1/roles/${id}`, { method: 'DELETE', message: 'Eliminando rol…' }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin', 'roles'] }); },
+  });
+}
+
+export function useUpdateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: number; patch: { email?: string; full_name?: string; status?: 'ACTIVE' | 'INACTIVE' } }) =>
+      apiFetch<BackendUser>(`/api/v1/usuarios/${input.id}`, {
+        method: 'PUT', body: JSON.stringify(input.patch), message: 'Guardando usuario…',
+      }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin', 'users'] }); },
+  });
+}
+
+export function useGrantUserRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { userId: number; roleId: number }) =>
+      apiFetch<{ detail: string }>(`/api/v1/usuarios/${input.userId}/roles`, {
+        method: 'POST', body: JSON.stringify({ role_id: input.roleId }),
+        message: 'Asignando rol…',
+      }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin', 'users'] }); },
+  });
+}
+
+export function useRevokeUserRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { userId: number; roleId: number }) =>
+      apiFetch<{ detail: string }>(`/api/v1/usuarios/${input.userId}/roles/${input.roleId}`, {
+        method: 'DELETE', message: 'Retirando rol…',
+      }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin', 'users'] }); },
+  });
+}
+
+export function useUpdateRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: number; patch: { name?: string; description?: string | null } }) =>
+      apiFetch<BackendRole>(`/api/v1/roles/${input.id}`, {
+        method: 'PUT', body: JSON.stringify(input.patch), message: 'Guardando rol…',
+      }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin', 'roles'] }); },
+  });
+}
+
 export function useGrantPermission() {
   const qc = useQueryClient();
   return useMutation({

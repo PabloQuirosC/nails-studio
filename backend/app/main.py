@@ -13,6 +13,7 @@ from app.presentation.routers import activity as activity_router
 from app.presentation.routers import agenda as agenda_router
 from app.presentation.routers import catalog as catalog_router
 from app.presentation.routers import clients as clients_router
+from app.presentation.routers import contact as contact_router
 from app.presentation.routers import content as content_router
 from app.presentation.routers import giftcards as giftcards_router
 from app.presentation.routers import roles as roles_router
@@ -71,4 +72,5 @@ app.include_router(catalog_router.router, prefix="/api/v1")
 app.include_router(agenda_router.router, prefix="/api/v1")
 app.include_router(clients_router.router, prefix="/api/v1")
 app.include_router(content_router.router, prefix="/api/v1")
+app.include_router(contact_router.router, prefix="/api/v1")
 app.include_router(activity_router.router, prefix="/api/v1")

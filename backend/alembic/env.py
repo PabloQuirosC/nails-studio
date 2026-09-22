@@ -11,6 +11,7 @@ from app.infrastructure.db.base import Base
 import app.infrastructure.models.agenda  # noqa: F401
 import app.infrastructure.models.catalog  # noqa: F401
 import app.infrastructure.models.clients  # noqa: F401
+import app.infrastructure.models.contact  # noqa: F401
 import app.infrastructure.models.content  # noqa: F401
 import app.infrastructure.models.giftcard  # noqa: F401
 import app.infrastructure.models.rbac  # noqa: F401

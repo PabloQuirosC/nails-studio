@@ -1,5 +1,5 @@
 export const CATEGORIES = [
-  { id: 'acrilicas', name: 'Acrílicas', icon: 'gem', color: '#c9a96e', description: 'Extensiones resistentes y versátiles' },
+  { id: 'acrilicas', name: 'Acrílicas', icon: 'gem', color: '#f2d29b', description: 'Extensiones resistentes y versátiles' },
   { id: 'gel-x', name: 'Gel X', icon: 'sparkles', color: '#9b8ea8', description: 'Gel ultra-flexible sin daño' },
   { id: 'semipermanente', name: 'Semipermanente', icon: 'flower', color: '#c8a0a0', description: 'Color duradero hasta 3 semanas' },
   { id: 'pedicure', name: 'Pedicure Spa', icon: 'footprints', color: '#8ab0c8', description: 'Tratamiento completo de pies' },
@@ -31,7 +31,7 @@ export const TESTIMONIALS = [
   { id: 1, name: 'Valentina Ríos', text: 'Llevaba años buscando un estudio que entendiera que quería arte, no solo color. Nails Studio es exactamente eso.', design: 'Botanical Garden', rating: 5, avatar: 'V' },
   { id: 2, name: 'Camila Serrano', text: 'El encapsulado con flores reales me duró 5 semanas perfecto. La calidad es incomparable y la atención es increíble.', design: 'Encapsulado Flores Secas', rating: 5, avatar: 'C' },
   { id: 3, name: 'María José López', text: 'Vine para mi boda y el equipo me hizo los relieves más hermosos. Todas mis invitadas querían el contacto del estudio.', design: 'Relieve 3D Mariposa', rating: 5, avatar: 'M' },
-  { id: 4, name: 'Andrea Fuentes', text: 'El visualizador 3D es una maravilla. Pude ver exactamente cómo quedaría el diseño antes de decidirme. Súper innovador.', design: 'Marble Luxe', rating: 5, avatar: 'A' },
+  { id: 4, name: 'Andrea Fuentes', text: 'El catálogo tiene opciones para todos los gustos y la reserva en línea es rapidísima. Volveré cada mes sin duda.', design: 'Marble Luxe', rating: 5, avatar: 'A' },
 ];
 
 export const BLOG_POSTS = [
@@ -49,7 +49,7 @@ export const NAIL_COLORS = [
   { id: 'rose-gold', name: 'Rose Gold', hex: '#c9a096' },
   { id: 'mauve', name: 'Mauve', hex: '#9b7a8b' },
   { id: 'coral', name: 'Coral Vivo', hex: '#e85d42' },
-  { id: 'gold', name: 'Dorado', hex: '#c9a96e' },
+  { id: 'gold', name: 'Dorado', hex: '#f2d29b' },
   { id: 'teal', name: 'Verde Jade', hex: '#3a7a7a' },
   { id: 'lavender', name: 'Lavanda', hex: '#9b8ec4' },
   { id: 'red', name: 'Rojo Clásico', hex: '#c41e3a' },

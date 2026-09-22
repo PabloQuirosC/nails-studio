@@ -51,6 +51,35 @@ def create_appointment(db: Session, **fields) -> Appointment:
     return appt
 
 
+def create_public_booking(db: Session, *, name: str, phone: str, email: str | None,
+                          design_id: int | None, starts_at: datetime,
+                          ends_at: datetime, notes: str | None) -> Appointment:
+    """Reserva desde la web pública: busca clienta por teléfono o la crea, luego cita pending.
+
+    Reutiliza la validación de solape global. El estado inicial siempre es pending
+    (el staff confirma desde el panel).
+    """
+    clean_phone = phone.strip()
+    client = db.scalar(select(Client).where(Client.phone == clean_phone))
+    if client is None:
+        client = Client(name=name.strip(), phone=clean_phone,
+                        email=(email or "").strip() or None)
+        db.add(client)
+        db.flush()
+        logger.info("Clienta creada desde reserva pública: %s (%s)", client.name, clean_phone)
+    if design_id is not None:
+        from app.infrastructure.models.catalog import Design
+        _get_or_404(db, Design, design_id, "Diseño")
+    _assert_no_overlap(db, starts_at, ends_at)
+    appt = Appointment(client_id=client.id, design_id=design_id, starts_at=starts_at,
+                       ends_at=ends_at, notes=(notes or "").strip() or None, status="pending")
+    db.add(appt)
+    db.commit()
+    db.refresh(appt)
+    logger.info("Reserva pública: id=%s clienta=%s %s–%s", appt.id, client.id, starts_at, ends_at)
+    return appt
+
+
 def list_appointments(db: Session, *, offset: int = 0, limit: int = 50, day: str = "",
                       status: str = "", client_id: int | None = None) -> tuple[list[Appointment], int]:
     filters = []

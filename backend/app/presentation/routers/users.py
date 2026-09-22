@@ -25,13 +25,23 @@ def _map(exc: Exception) -> HTTPException:
     raise exc  # type: ignore[misc]
 
 
+def _out(db: Session, user) -> schemas.UserOut:
+    """UserOut con roles como nombres (el modelo crudo expone objetos UserRole y rompe la validación)."""
+    return schemas.UserOut(
+        id=user.id, username=user.username, email=user.email, full_name=user.full_name,
+        status=user.status, roles=rbac_repo.role_names_for_user(db, user.id),
+        last_login=user.last_login,
+    )
+
+
 @router.post("", response_model=schemas.UserOut, status_code=201)
 def create(body: schemas.UserCreate, db: Session = Depends(get_db)):
     try:
-        return rbac_service.create_user(db, username=body.username, email=str(body.email),
+        user = rbac_service.create_user(db, username=body.username, email=str(body.email),
                                         full_name=body.full_name, password=body.password)
     except Exception as exc:
         raise _map(exc) from exc
+    return _out(db, user)
 
 
 @router.get("", response_model=schemas.UserPage)
@@ -54,16 +64,17 @@ def get_one(user_id: int, db: Session = Depends(get_db)):
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(404, "Usuario no encontrado")
-    return user
+    return _out(db, user)
 
 
 @router.put("/{user_id}", response_model=schemas.UserOut)
 def update(user_id: int, body: schemas.UserUpdate, db: Session = Depends(get_db)):
     try:
-        return rbac_service.update_user(db, user_id, email=str(body.email) if body.email else None,
+        user = rbac_service.update_user(db, user_id, email=str(body.email) if body.email else None,
                                         full_name=body.full_name, status=body.status)
     except Exception as exc:
         raise _map(exc) from exc
+    return _out(db, user)
 
 
 @router.delete("/{user_id}", response_model=schemas.Message, status_code=status.HTTP_200_OK)

@@ -1,16 +1,16 @@
                   {onlineAgenda ? (
                     (dayApptsQuery.data?.items ?? []).length === 0 ? (
-                      <p className="py-8 text-center text-[#8a7d6e] text-xs">Sin citas este día. Crea la primera con Nueva cita.</p>
+                      <p className="py-8 text-center text-[#b3a893] text-xs">Sin citas este día. Crea la primera con Nueva cita.</p>
                     ) : (dayApptsQuery.data?.items ?? []).map(a => {
                       const meta = STATUS_META[a.status] ?? STATUS_META.pending;
                       const hh = a.starts_at.slice(11, 16);
                       return (
-                        <div key={a.id} className="flex items-center gap-3 py-2.5 group hover:bg-[#c9a96e]/[0.03] rounded-lg px-1.5 -mx-1.5 transition-colors">
-                          <span className="font-mono text-[12px] text-[#e8d4a8] w-10 shrink-0">{hh}</span>
-                          <span className="w-1 h-7 rounded-full shrink-0 bg-[#c9a96e]/60" />
+                        <div key={a.id} className="flex items-center gap-3 py-2.5 group hover:bg-[#f2d29b]/[0.03] rounded-lg px-1.5 -mx-1.5 transition-colors">
+                          <span className="font-mono text-[12px] text-[#f9e9c8] w-10 shrink-0">{hh}</span>
+                          <span className="w-1 h-7 rounded-full shrink-0 bg-[#f2d29b]/60" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-[#f0ebe4] text-[13px] leading-tight truncate">{clientNameById.get(a.client_id) ?? `Clienta #${a.client_id}`}</p>
-                            <p className="text-[#8a7d6e] text-[11px] truncate">
+                            <p className="text-[#faf7f0] text-[13px] leading-tight truncate">{clientNameById.get(a.client_id) ?? `Clienta #${a.client_id}`}</p>
+                            <p className="text-[#b3a893] text-[11px] truncate">
                               {a.design_id ? (designNameById.get(a.design_id) ?? 'Diseño') : 'Servicio general'} · {a.artist_name}
                             </p>
                           </div>
@@ -18,14 +18,14 @@
                           {NEXT_STATUS[a.status] && (
                             <Can code="reservas.update">
                               <button onClick={() => advanceAppointment(a.id, a.status)} title={NEXT_STATUS[a.status].label}
-                                className="text-[10px] px-2 py-1 rounded-lg border border-[#c9a96e]/30 text-[#c9a96e] hover:bg-[#c9a96e]/10 transition-all shrink-0">
+                                className="text-[10px] px-2 py-1 rounded-lg border border-[#f2d29b]/30 text-[#f2d29b] hover:bg-[#f2d29b]/10 transition-all shrink-0">
                                 {NEXT_STATUS[a.status].label}
                               </button>
                             </Can>
                           )}
                           <Can code="reservas.delete">
                             <button onClick={() => setDeleteApptModal({ open: true, id: a.id })} title="Eliminar"
-                              className="text-[#4a4238] hover:text-[#e08a6d] transition-colors shrink-0">
+                              className="text-[#6b6355] hover:text-[#e08a6d] transition-colors shrink-0">
                               <Trash2 size={13} />
                             </button>
                           </Can>
@@ -34,7 +34,7 @@
                     })
                   ) : (
                     [
-                      { ...MOCK_APPOINTMENTS[0], artist: 'Gaby M.', status: 'En curso', cls: 'bg-[#c9a96e]/15 text-[#e8d4a8] border-[#c9a96e]/30' },
+                      { ...MOCK_APPOINTMENTS[0], artist: 'Gaby M.', status: 'En curso', cls: 'bg-[#f2d29b]/15 text-[#f9e9c8] border-[#f2d29b]/30' },
                       { ...MOCK_APPOINTMENTS[1], artist: 'Dani R.', status: 'Confirmada', cls: 'bg-[#8aab8a]/10 text-[#8aab8a] border-[#8aab8a]/25' },
                       { ...MOCK_APPOINTMENTS[2], artist: 'Gaby M.', status: 'Confirmada', cls: 'bg-[#8aab8a]/10 text-[#8aab8a] border-[#8aab8a]/25' },
                       { ...MOCK_APPOINTMENTS[3], artist: 'Dani R.', status: 'Pendiente', cls: 'bg-[#d4613a]/10 text-[#e08a6d] border-[#d4613a]/25' },

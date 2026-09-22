@@ -1,7 +1,7 @@
 """Seed idempotente RBAC Nails Studio (admin vía variables de entorno, nunca CLI)."""
 import logging
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.security import hash_password
 from app.infrastructure.db.base import PermissionType
@@ -21,6 +21,7 @@ MODULES: list[tuple[str, str]] = [
     ("CLIENTAS", "Clientas"),
     ("GIFTCARDS", "Gift Cards"),
     ("BLOG", "Blog y testimonios"),
+    ("CONTACTO", "Contacto y mensajes"),
 ]
 
 TYPES = [PermissionType.READ, PermissionType.CREATE, PermissionType.UPDATE, PermissionType.DELETE]
@@ -51,7 +52,8 @@ def main() -> None:
     try:
         mods = [_module(db, code, name) for code, name in MODULES]
         perms = [p for m in mods for p in [_permission(db, m, t) for t in TYPES]]
-        admin = db.scalar(select(Role).where(Role.name == "ADMIN"))
+        # Case-insensitive: no duplica si el rol existe como 'Admin'/'admin'.
+        admin = db.scalar(select(Role).where(func.lower(Role.name) == "admin"))
         if admin is None:
             admin = Role(name="ADMIN", description="Acceso total", is_system=True)
             db.add(admin)

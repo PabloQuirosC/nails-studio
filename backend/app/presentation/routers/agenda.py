@@ -1,8 +1,9 @@
-"""Agenda: todo autenticado; crear/reprogramar bloquean solapes con 409."""
-from fastapi import APIRouter, Depends, HTTPException
+"""Agenda: staff autenticado + reserva pública (throttle, siempre pending)."""
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.application import agenda_service
+from app.core import rate_limit
 from app.core.exceptions import Conflict, NotFound
 from app.infrastructure.db.session import get_db
 from app.presentation import schemas_studio as s
@@ -28,6 +29,20 @@ def list_all(offset: int = 0, limit: int = 50, day: str = "", status: str = "",
     items, total = agenda_service.list_appointments(
         db, offset=offset, limit=limit, day=day, status=status, client_id=client_id)
     return {"items": items, "total": total}
+
+
+@router.post("/public", response_model=s.AppointmentOut, status_code=201)
+def create_public(body: s.PublicBookingCreate, request: Request, db: Session = Depends(get_db)):
+    """Reserva desde la web (sin auth): crea clienta si no existe, cita en pending."""
+    ip = request.client.host if request.client else "?"
+    key = f"booking|{ip}"
+    if not rate_limit.login_allowed(key):
+        raise HTTPException(status_code=429, detail="Demasiados intentos, espera un minuto")
+    rate_limit.login_hit(key)
+    try:
+        return agenda_service.create_public_booking(db, **body.model_dump())
+    except Exception as exc:
+        raise _map(exc) from exc
 
 
 @router.post("", response_model=s.AppointmentOut, status_code=201,

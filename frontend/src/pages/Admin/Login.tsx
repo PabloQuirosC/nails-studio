@@ -37,16 +37,16 @@ export function AdminLogin() {
   };
 
   const inputBase =
-    'w-full bg-[#0d0b0a] border rounded-lg pl-10 pr-10 py-3 text-sm text-[#f0ebe4] placeholder-[#4a4238] outline-none transition-all duration-200';
+    'w-full bg-[#0d0b09] border rounded-lg pl-10 pr-10 py-3 text-sm text-[#faf7f0] placeholder-[#6b6355] outline-none transition-all duration-200';
 
   return (
-    <div className="min-h-screen flex bg-[#080706] noise relative overflow-hidden">
+    <div className="min-h-screen flex bg-[#060505] noise relative overflow-hidden">
       {/* Ambient orbs */}
       <div className="orb orb-gold orb-animate" style={{ width: 520, height: 520, top: '-12%', left: '-8%', opacity: 0.5 }} />
       <div className="orb orb-terra orb-animate-rev" style={{ width: 420, height: 420, bottom: '-10%', right: '30%', opacity: 0.35 }} />
 
       {/* ── Left: brand panel (desktop) ── */}
-      <div className="hidden lg:flex relative w-[46%] flex-col justify-between overflow-hidden border-r border-[#231e14]">
+      <div className="hidden lg:flex relative w-[46%] flex-col justify-between overflow-hidden border-r border-[#3a2f1e]">
         <img
           src={coverSrc}
           onError={() => { if (coverSrc !== FALLBACK_COVER) setCoverSrc(FALLBACK_COVER); }}
@@ -59,28 +59,28 @@ export function AdminLogin() {
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(to bottom, rgba(8,7,6,0.55) 0%, rgba(8,7,6,0.25) 40%, rgba(8,7,6,0.92) 100%), radial-gradient(ellipse 90% 55% at 50% 100%, rgba(201,169,110,0.16) 0%, transparent 70%)',
+              'linear-gradient(to bottom, rgba(8,7,6,0.55) 0%, rgba(8,7,6,0.25) 40%, rgba(8,7,6,0.92) 100%), radial-gradient(ellipse 90% 55% at 50% 100%, rgba(242,210,155,0.16) 0%, transparent 70%)',
           }}
         />
 
         <div className="relative z-10 p-10 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full border border-[#c9a96e]/50 flex items-center justify-center">
-            <Sparkles size={13} className="text-[#c9a96e]" />
+          <div className="w-8 h-8 rounded-full border border-[#f2d29b]/50 flex items-center justify-center">
+            <Sparkles size={13} className="text-[#f2d29b]" />
           </div>
           <span className="font-serif text-xl tracking-wide">
             <span className="text-gradient-subtle">Nails</span>
-            <span className="text-[#f0ebe4]"> Studio</span>
+            <span className="text-[#faf7f0]"> Studio</span>
           </span>
         </div>
 
         <div className="relative z-10 p-10">
-          <p className="font-mono text-[#c9a96e] text-[10px] tracking-[0.3em] uppercase mb-4">
+          <p className="font-mono text-[#f2d29b] text-[10px] tracking-[0.3em] uppercase mb-4">
             Acceso privado · Staff
           </p>
-          <p className="font-serif italic text-[#f0ebe4] leading-snug" style={{ fontSize: 'clamp(1.8rem, 3vw, 2.6rem)' }}>
+          <p className="font-serif italic text-[#faf7f0] leading-snug" style={{ fontSize: 'clamp(1.8rem, 3vw, 2.6rem)' }}>
             “El lujo está<br />en cada detalle.”
           </p>
-          <div className="mt-6 h-px w-16 bg-gradient-to-r from-[#c9a96e] to-transparent" />
+          <div className="mt-6 h-px w-16 bg-gradient-to-r from-[#f2d29b] to-transparent" />
           <div className="mt-6 flex gap-8">
             {[
               ['5K+', 'diseños'],
@@ -88,8 +88,8 @@ export function AdminLogin() {
               ['8 años', 'de arte'],
             ].map(([n, l]) => (
               <div key={l}>
-                <p className="font-serif text-xl text-[#e8d4a8]">{n}</p>
-                <p className="font-mono text-[#8a7d6e] text-[10px] uppercase tracking-widest">{l}</p>
+                <p className="font-serif text-xl text-[#f9e9c8]">{n}</p>
+                <p className="font-mono text-[#b3a893] text-[10px] uppercase tracking-widest">{l}</p>
               </div>
             ))}
           </div>
@@ -101,7 +101,7 @@ export function AdminLogin() {
         <div className="w-full max-w-md animate-fade-in-up">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-[#7a6e60] hover:text-[#c9a96e] text-xs font-mono uppercase tracking-widest transition-colors mb-8"
+            className="inline-flex items-center gap-2 text-[#a29885] hover:text-[#f2d29b] text-xs font-mono uppercase tracking-widest transition-colors mb-8"
           >
             <ArrowLeft size={13} /> Volver al sitio
           </Link>
@@ -109,10 +109,10 @@ export function AdminLogin() {
           <div className="mb-4">
             <span className="section-label">Panel de administración</span>
           </div>
-          <h1 className="font-serif text-[#f0ebe4] leading-tight mb-2" style={{ fontSize: 'clamp(2rem, 4vw, 2.75rem)' }}>
+          <h1 className="font-serif text-[#faf7f0] leading-tight mb-2" style={{ fontSize: 'clamp(2rem, 4vw, 2.75rem)' }}>
             Bienvenida de <em className="text-gradient not-italic font-serif italic">vuelta</em>
           </h1>
-          <p className="text-[#7a6e60] text-sm mb-8 leading-relaxed">
+          <p className="text-[#a29885] text-sm mb-8 leading-relaxed">
             Ingresa con tu cuenta de staff para gestionar citas, catálogo y clientas.
           </p>
 
@@ -122,11 +122,11 @@ export function AdminLogin() {
             noValidate
           >
             <div>
-              <label htmlFor="admin-email" className="text-[#8a7d6e] text-[11px] font-mono uppercase tracking-widest mb-2 block">
+              <label htmlFor="admin-email" className="text-[#b3a893] text-[11px] font-mono uppercase tracking-widest mb-2 block">
                 Email corporativo
               </label>
               <div className="relative">
-                <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#4a4238] pointer-events-none" />
+                <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6b6355] pointer-events-none" />
                 <input
                   id="admin-email"
                   value={email}
@@ -136,22 +136,22 @@ export function AdminLogin() {
                   autoComplete="username"
                   placeholder="tu@ nailsstudio.com"
                   aria-invalid={error ? true : undefined}
-                  className={`${inputBase} ${error ? 'border-[#d4613a]/60' : 'border-[#2e2518] focus:border-[#c9a96e]/70 focus:shadow-[0_0_0_3px_rgba(201,169,110,0.12)]'}`}
+                  className={`${inputBase} ${error ? 'border-[#d4613a]/60' : 'border-[#403521] focus:border-[#f2d29b]/70 focus:shadow-[0_0_0_3px_rgba(242,210,155,0.12)]'}`}
                 />
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label htmlFor="admin-password" className="text-[#8a7d6e] text-[11px] font-mono uppercase tracking-widest block">
+                <label htmlFor="admin-password" className="text-[#b3a893] text-[11px] font-mono uppercase tracking-widest block">
                   Contraseña
                 </label>
-                <button type="button" className="text-[#4a4238] hover:text-[#c9a96e] text-xs transition-colors">
+                <button type="button" className="text-[#6b6355] hover:text-[#f2d29b] text-xs transition-colors">
                   ¿La olvidaste?
                 </button>
               </div>
               <div className="relative">
-                <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#4a4238] pointer-events-none" />
+                <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6b6355] pointer-events-none" />
                 <input
                   id="admin-password"
                   value={password}
@@ -161,13 +161,13 @@ export function AdminLogin() {
                   autoComplete="current-password"
                   placeholder="••••••••"
                   aria-invalid={error ? true : undefined}
-                  className={`${inputBase} ${error ? 'border-[#d4613a]/60' : 'border-[#2e2518] focus:border-[#c9a96e]/70 focus:shadow-[0_0_0_3px_rgba(201,169,110,0.12)]'}`}
+                  className={`${inputBase} ${error ? 'border-[#d4613a]/60' : 'border-[#403521] focus:border-[#f2d29b]/70 focus:shadow-[0_0_0_3px_rgba(242,210,155,0.12)]'}`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw((s) => !s)}
                   aria-label={showPw ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4a4238] hover:text-[#f0ebe4] transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6b6355] hover:text-[#faf7f0] transition-colors"
                 >
                   {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
@@ -201,15 +201,15 @@ export function AdminLogin() {
               )}
             </button>
 
-            <p className="text-center text-[#4a4238] text-[11px] font-mono tracking-wide pt-1">
+            <p className="text-center text-[#6b6355] text-[11px] font-mono tracking-wide pt-1">
               Acceso restringido · Solo personal autorizado
             </p>
           </form>
 
-          <div className="mt-8 flex items-center justify-center gap-2 text-[#4a4238] text-[11px] font-mono">
-            <span className="w-1 h-1 rounded-full bg-[#c9a96e]/60" />
+          <div className="mt-8 flex items-center justify-center gap-2 text-[#6b6355] text-[11px] font-mono">
+            <span className="w-1 h-1 rounded-full bg-[#f2d29b]/60" />
             Sesión protegida · Nails Studio © 2026
-            <span className="w-1 h-1 rounded-full bg-[#c9a96e]/60" />
+            <span className="w-1 h-1 rounded-full bg-[#f2d29b]/60" />
           </div>
         </div>
       </div>

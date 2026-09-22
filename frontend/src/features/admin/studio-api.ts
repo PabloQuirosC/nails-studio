@@ -300,7 +300,7 @@ export function useAdjustClientPoints() {
   });
 }
 
-// ─── Reseñas (panel admin: pendientes + publicadas, editar/eliminar) ───
+// ─── Reseñas (kind=testimonio, dejan las clientas) + Blog (kind=articulo, tips propios) ───
 export interface AdminPost {
   id: number;
   slug: string;
@@ -309,23 +309,36 @@ export interface AdminPost {
   excerpt: string | null;
   body: string | null;
   category: string;
+  image_url: string | null;
+  read_minutes: number;
   author: string | null;
   rating: number | null;
   design_name: string | null;
   published: boolean;
 }
 
-export function useAdminPosts(published: boolean | null, page = 1, limit = 6) {
+export function useAdminPosts(published: boolean | null, page = 1, limit = 6, kind: 'testimonio' | 'articulo' | 'nosotros' = 'testimonio') {
   const pub = published === null ? '' : `&published=${published}`;
   const offset = (Math.max(1, page) - 1) * limit;
   return useQuery({
-    queryKey: ['admin', 'posts', published, page, limit],
+    queryKey: ['admin', 'posts', kind, published, page, limit],
     queryFn: () =>
-      apiFetch<Page<AdminPost>>(`/api/v1/posts/admin/todos?offset=${offset}&limit=${limit}&kind=testimonio${pub}`, {
-        message: 'Cargando reseñas…',
+      apiFetch<Page<AdminPost>>(`/api/v1/posts/admin/todos?offset=${offset}&limit=${limit}&kind=${kind}${pub}`, {
+        message: kind === 'articulo' ? 'Cargando blog…' : kind === 'nosotros' ? 'Cargando nosotros…' : 'Cargando reseñas…',
       }),
     retry: 1,
     staleTime: 30_000,
+  });
+}
+
+export function useCreatePost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: Record<string, unknown>) =>
+      apiFetch<AdminPost>('/api/v1/posts', {
+        method: 'POST', body: JSON.stringify(input), message: 'Publicando…',
+      }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin', 'posts'] }); },
   });
 }
 
@@ -357,6 +370,58 @@ export function useDeletePost() {
     mutationFn: (id: number) =>
       apiFetch<{ detail: string }>(`/api/v1/posts/${id}`, { method: 'DELETE', message: 'Eliminando…' }),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin', 'posts'] }); },
+  });
+}
+
+// ─── Categorías del blog (crear + asociar a artículos por nombre) ───
+export interface BlogCategory {
+  id: number;
+  name: string;
+  slug: string;
+  created_at: string;
+}
+
+export function useBlogCategories() {
+  return useQuery({
+    queryKey: ['admin', 'post-categories'],
+    queryFn: () =>
+      apiFetch<BlogCategory[]>('/api/v1/posts/categories', { message: 'Cargando categorías…', block: false }),
+    retry: 1,
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateBlogCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { name: string }) =>
+      apiFetch<BlogCategory>('/api/v1/posts/categories', {
+        method: 'POST', body: JSON.stringify(input), message: 'Creando categoría…',
+      }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin', 'post-categories'] }); },
+  });
+}
+
+export function useUpdateBlogCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: number; name: string }) =>
+      apiFetch<BlogCategory>(`/api/v1/posts/categories/${input.id}`, {
+        method: 'PUT', body: JSON.stringify({ name: input.name }), message: 'Guardando categoría…',
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['admin', 'post-categories'] });
+      void qc.invalidateQueries({ queryKey: ['admin', 'posts'] });
+    },
+  });
+}
+
+export function useDeleteBlogCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<{ detail: string }>(`/api/v1/posts/categories/${id}`, { method: 'DELETE', message: 'Eliminando…' }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin', 'post-categories'] }); },
   });
 }
 export function useLoyaltyCards(enabled: boolean) {

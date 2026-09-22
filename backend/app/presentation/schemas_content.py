@@ -61,3 +61,19 @@ class PostOut(BaseModel):
 class PostPage(BaseModel):
     items: list[PostOut]
     total: int
+
+
+class CategoryCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=60)
+
+
+class CategoryUpdate(BaseModel):
+    name: str = Field(min_length=2, max_length=60)
+
+
+class CategoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    slug: str
+    created_at: datetime

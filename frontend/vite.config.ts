@@ -9,7 +9,7 @@ export default defineConfig({
   base: '/',
   build: {
     sourcemap: false,
-    chunkSizeWarningLimit: 1200, // three.js es pesado, se permite chunk grande para visualizador 3D
+    chunkSizeWarningLimit: 600,
   },
   plugins: [react(), tailwindcss()],
   resolve: {

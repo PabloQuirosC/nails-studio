@@ -68,6 +68,41 @@ def submit_testimonio(body: schemas_content.TestimonioCreate, request: Request,
     return {"detail": "Reseña recibida, será publicada tras revisión.", "id": post.id}
 
 
+# Categorías administrables (antes de /{ref} para no colisionar con slugs).
+@router.get("/categories", response_model=list[schemas_content.CategoryOut])
+def list_categories(db: Session = Depends(get_db)):
+    return content_service.list_categories(db)
+
+
+@router.post("/categories", response_model=schemas_content.CategoryOut, status_code=201,
+             dependencies=[Depends(require_permission("blog.create"))])
+def create_category(body: schemas_content.CategoryCreate, db: Session = Depends(get_db)):
+    try:
+        return content_service.create_category(db, name=body.name)
+    except Exception as exc:
+        raise _map(exc) from exc
+
+
+@router.put("/categories/{category_id}", response_model=schemas_content.CategoryOut,
+            dependencies=[Depends(require_permission("blog.update"))])
+def update_category(category_id: int, body: schemas_content.CategoryUpdate,
+                    db: Session = Depends(get_db)):
+    try:
+        return content_service.update_category(db, category_id, name=body.name)
+    except Exception as exc:
+        raise _map(exc) from exc
+
+
+@router.delete("/categories/{category_id}", response_model=dict,
+               dependencies=[Depends(require_permission("blog.delete"))])
+def delete_category(category_id: int, db: Session = Depends(get_db)):
+    try:
+        content_service.delete_category(db, category_id)
+    except Exception as exc:
+        raise _map(exc) from exc
+    return {"detail": "Categoría eliminada"}
+
+
 @router.get("/{ref}", response_model=schemas_content.PostOut)
 def get_one(ref: str, db: Session = Depends(get_db)):
     try:
@@ -89,7 +124,7 @@ def create(body: schemas_content.PostCreate, db: Session = Depends(get_db)):
             dependencies=[Depends(require_permission("blog.update"))])
 def update(post_id: int, body: schemas_content.PostUpdate, db: Session = Depends(get_db)):
     try:
-        return content_service.update_post(db, post_id, **body.model_dump())
+        return content_service.update_post(db, post_id, **body.model_dump(exclude_unset=True))
     except Exception as exc:
         raise _map(exc) from exc
 

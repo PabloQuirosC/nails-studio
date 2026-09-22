@@ -83,8 +83,26 @@ POSTS = [
      "Testimonio", 1, "María José López", 5, "Relieve 3D Mariposa"),
     ("testimonio-andrea", "testimonio",
      "Andrea Fuentes",
-     "El visualizador 3D es una maravilla. Pude ver exactamente cómo quedaría el diseño antes de decidirme. Súper innovador.",
+     "El catálogo tiene opciones para todos los gustos y la reserva en línea es rapidísima. Volveré cada mes sin duda.",
      "Testimonio", 1, "Andrea Fuentes", 5, "Marble Luxe"),
+    ("nuestra-historia", "nosotros",
+     "Nails Studio nació de una convicción simple: las uñas son un lienzo, y cada clienta merece arte personalizado, no un template repetido.",
+     "Fundamos el estudio en 2019 con una mesa, una lampara UV y una obsesión por la calidad. Hoy somos un equipo de artistas especializadas con más de 5,000 diseños únicos en nuestro haber.",
+     "Historia", 2, "Fernanda Torres", None, None,
+     "Cada cita es una colaboración. Escuchamos, diseñamos y ejecutamos con la precisión de quien ama lo que hace.",
+     "https://images.unsplash.com/photo-1604654894610-df63bc536371?w=700&h=900&fit=crop&auto=format"),
+    ("valor-calidad", "nosotros",
+     "Calidad sin compromiso",
+     "Solo usamos materiales premium con certificación internacional.",
+     "Valores", 1, None, None, None),
+    ("valor-arte", "nosotros",
+     "Arte personalizado",
+     "Ningún diseño se repite. Cada uña es única como quien la lleva.",
+     "Valores", 1, None, None, None),
+    ("valor-higiene", "nosotros",
+     "Higiene estricta",
+     "Protocolos de esterilización profesional en cada servicio.",
+     "Valores", 1, None, None, None),
 ]
 
 
@@ -116,10 +134,13 @@ def main() -> None:
                 db.add(Client(name=name, phone=phone, visits=visits, points=points))
                 n_clients += 1
         n_posts = 0
-        for slug, kind, title, excerpt, category, mins, author, rating, design in POSTS:
+        for row in POSTS:
+            slug, kind, title, excerpt, category, mins, author, rating, design = row[:9]
+            body = row[9] if len(row) > 9 else BODY_GENERIC
+            image = row[10] if len(row) > 10 else IMG_BLOG
             if db.scalar(select(Post).where(Post.slug == slug)) is None:
-                db.add(Post(slug=slug, kind=kind, title=title, excerpt=excerpt, body=BODY_GENERIC,
-                            category=category, image_url=IMG_BLOG, read_minutes=mins,
+                db.add(Post(slug=slug, kind=kind, title=title, excerpt=excerpt, body=body,
+                            category=category, image_url=image, read_minutes=mins,
                             author=author, rating=rating, design_name=design))
                 n_posts += 1
         db.commit()
