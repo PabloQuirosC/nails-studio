@@ -15,6 +15,7 @@ import app.infrastructure.models.contact  # noqa: F401
 import app.infrastructure.models.content  # noqa: F401
 import app.infrastructure.models.giftcard  # noqa: F401
 import app.infrastructure.models.rbac  # noqa: F401
+import app.infrastructure.models.referral  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

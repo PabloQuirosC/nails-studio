@@ -20,6 +20,7 @@ MODULES: list[tuple[str, str]] = [
     ("RESERVAS", "Reservas"),
     ("CLIENTAS", "Clientas"),
     ("GIFTCARDS", "Gift Cards"),
+    ("REFERIDOS", "Referidos"),
     ("BLOG", "Blog y testimonios"),
     ("CONTACTO", "Contacto y mensajes"),
 ]

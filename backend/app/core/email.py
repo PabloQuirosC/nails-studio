@@ -9,8 +9,10 @@ Si falta la key o Resend falla, se loguea y se retorna False.
 """
 from __future__ import annotations
 
+import base64
 import html as _html
 import logging
+from pathlib import Path
 
 from app.core.config import settings
 
@@ -23,6 +25,25 @@ BRAND = {
     "muted": "#78716c",
     "bg": "#faf7f2",
 }
+
+LOGO_CID = "nails-logo"
+_LOGO_CACHE: str | None = None
+
+
+def _logo_b64() -> str | None:
+    """Logo embebido (CID): se lee una vez del paquete, sin depender del frontend."""
+    global _LOGO_CACHE
+    try:
+        if _LOGO_CACHE is None:
+            data = (Path(__file__).resolve().parent / "assets" / "logo.jpg").read_bytes()
+            if not data or len(data) > 300_000:
+                _LOGO_CACHE = ""
+            else:
+                _LOGO_CACHE = base64.b64encode(data).decode("ascii")
+    except Exception as exc:
+        logger.warning("Logo para correos no disponible: %s", exc)
+        return None
+    return _LOGO_CACHE or None
 
 
 def _esc(value: object | None) -> str:
@@ -59,7 +80,7 @@ def base_template(*, title: str, heading: str, intro: str, rows: list[tuple[str,
 <html lang="es"><body style="margin:0;background:{BRAND['bg']};font-family:Arial,Helvetica,sans-serif;">
 <div style="max-width:600px;margin:0 auto;padding:24px;">
   <div style="text-align:center;padding:18px 0;">
-    <div style="font-size:22px;font-weight:bold;color:{BRAND['dark']};"><span style="display:inline-block;width:38px;height:38px;line-height:38px;border-radius:50%;background:{BRAND['dark']};color:{BRAND['accent']};font-size:15px;letter-spacing:1px;vertical-align:middle;">NS</span>&nbsp;{BRAND['name']}</div>
+    <div style="font-size:22px;font-weight:bold;color:{BRAND['dark']};"><img src="cid:{LOGO_CID}" alt="Nails Studio" width="44" height="44" style="border-radius:50%;vertical-align:middle;" />&nbsp;{BRAND['name']}</div>
     <div style="font-size:12px;color:{BRAND['muted']};">{_esc(title)}</div>
   </div>
   <div style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #eee5d5;">
@@ -143,6 +164,11 @@ def send_email(*, to: str | list[str], subject: str, html: str, reply_to: str | 
         params: dict = {"from": sender, "to": dests, "subject": subject, "html": html}
         if reply_to:
             params["reply_to"] = reply_to
+        logo = _logo_b64() if f"cid:{LOGO_CID}" in html else None
+        if logo:
+            params["attachments"] = [
+                {"content": logo, "filename": "logo.jpg", "content_id": LOGO_CID}
+            ]
         resend.Emails.send(params)  # type: ignore[arg-type]
         logger.info("Correo enviado vía Resend: to=%s subject=%s", ",".join(dests), subject)
         return True
