@@ -1,9 +1,10 @@
 """Gift Cards: lectura/creación/canje/borrado con permisos finos por código."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.application import giftcard_service
+from app.core.email import get_admin_emails, notify_giftcard_redeemed
 from app.core.exceptions import Conflict, NotFound
 from app.infrastructure.db.session import get_db
 from app.infrastructure.models.giftcard import GiftCard
@@ -42,8 +43,8 @@ def create(body: schemas.GiftCardCreate, db: Session = Depends(get_db)):
 
 @router.put("/{code}", response_model=schemas.GiftCardOut,
             dependencies=[Depends(require_permission("giftcards.update"))])
-def update(code: str, body: schemas.GiftCardUsed, db: Session = Depends(get_db),
-           user: User = Depends(get_current_user)):
+def update(code: str, body: schemas.GiftCardUsed, background: BackgroundTasks,
+           db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     try:
         data = body.model_dump(exclude_none=True)
         if not data:
@@ -56,7 +57,17 @@ def update(code: str, body: schemas.GiftCardUsed, db: Session = Depends(get_db),
             if gc is None:
                 raise HTTPException(404, "Gift card no encontrada")
             return gc
-        return giftcard_service.set_used(db, code, used, actor=user)
+        gc = giftcard_service.set_used(db, code, used, actor=user)
+        if used is True:
+            admins = get_admin_emails(db)
+            background.add_task(
+                notify_giftcard_redeemed, code=gc.code, amount=gc.amount,
+                buyer=gc.buyer, recipient=gc.recipient,
+                used_at=gc.used_at.isoformat(timespec="minutes") if gc.used_at else "—",
+                actor=user.username if user else None,
+                admin_emails=admins,
+            )
+        return gc
     except Exception as exc:
         raise _map(exc) from exc
 

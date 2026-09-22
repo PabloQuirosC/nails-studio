@@ -176,3 +176,19 @@ class RewardsOut(BaseModel):
     visits_to_reward: int
     progress_pct: int
     loyalty_cards: list[str] = []
+
+
+class LoyaltyCardOut(BaseModel):
+    code: str
+    amount: int
+    used: bool
+
+
+class ClientLookupOut(BaseModel):
+    """Consulta pública de lealtad: sin PII sensible (sin email/teléfono)."""
+    name: str
+    visits: int
+    points: int
+    visits_to_reward: int
+    progress_pct: int
+    loyalty_cards: list[LoyaltyCardOut] = []

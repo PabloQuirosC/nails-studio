@@ -1,9 +1,10 @@
 """Contacto: info pública + buzón (envío público con throttle, gestión staff)."""
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.application import contact_service
 from app.core import rate_limit
+from app.core.email import get_admin_emails, notify_contact_admin
 from app.core.exceptions import NotFound
 from app.infrastructure.db.session import get_db
 from app.presentation import schemas_contact
@@ -19,15 +20,18 @@ def get_info(db: Session = Depends(get_db)):
 
 @router.post("/messages", response_model=dict, status_code=201)
 def submit_message(body: schemas_contact.ContactMessageCreate, request: Request,
-                   db: Session = Depends(get_db)):
+                   background: BackgroundTasks, db: Session = Depends(get_db)):
     """Buzón público: entra como no leído, anti-spam con throttle por IP."""
-    ip = request.client.host if request.client else "?"
-    key = f"contact|{ip}"
-    if not rate_limit.login_allowed(key):
+    ip = rate_limit.client_ip(request)
+    if not rate_limit.check("contact", ip):
         raise HTTPException(status_code=429, detail="Demasiados intentos, espera un minuto")
-    rate_limit.login_hit(key)
+    rate_limit.hit("contact", ip)
     msg = contact_service.create_message(db, name=body.name, email=str(body.email),
                                          phone=body.phone, message=body.message)
+    admins = get_admin_emails(db)
+    background.add_task(notify_contact_admin, name=msg.name, email=msg.email,
+                        phone=msg.phone, message=msg.message, msg_id=msg.id,
+                        admin_emails=admins)
     return {"detail": "Mensaje recibido, te responderemos en menos de 24 horas.", "id": msg.id}
 
 

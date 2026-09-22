@@ -18,6 +18,14 @@ def _get_or_404(db: Session, client_id: int) -> Client:
     return client
 
 
+def lookup_by_phone(db: Session, phone: str) -> Client | None:
+    """Búsqueda exacta por teléfono para la consulta pública de lealtad."""
+    clean = (phone or "").strip()
+    if not clean:
+        return None
+    return db.scalar(select(Client).where(Client.phone == clean))
+
+
 def create_client(db: Session, **fields) -> Client:
     fields["phone"] = fields["phone"].strip()
     if fields.get("email"):

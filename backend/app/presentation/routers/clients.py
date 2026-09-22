@@ -1,9 +1,10 @@
 """Clientas: CRUD + puntos manuales + progreso de lealtad."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.application import agenda_service, clients_service
+from app.core import rate_limit
 from app.core.exceptions import Conflict, NotFound
 from app.infrastructure.db.session import get_db
 from app.infrastructure.models.giftcard import GiftCard
@@ -11,6 +12,48 @@ from app.presentation import schemas_studio as s
 from app.presentation.deps import require_permission
 
 router = APIRouter(prefix="/clients", tags=["clientas"])
+
+
+def _lookup_payload(db: Session, client_id: int) -> dict:
+    """Progreso + tarjetas de lealtad (reutilizado por el endpoint staff y el público)."""
+    from app.infrastructure.models.clients import Client
+    client = db.get(Client, client_id)
+    if client is None:
+        raise NotFound("Clienta no encontrada")
+    to_go = agenda_service.LOYALTY_EVERY - (client.visits % agenda_service.LOYALTY_EVERY)
+    cards = list(db.scalars(
+        select(GiftCard).where(GiftCard.client_id == client_id, GiftCard.source == "loyalty")
+        .order_by(GiftCard.id.desc())
+    ).all())
+    return {
+        "client": client,
+        "visits_to_reward": 0 if to_go == agenda_service.LOYALTY_EVERY and client.visits > 0 else to_go,
+        "progress_pct": round((client.visits % agenda_service.LOYALTY_EVERY) / agenda_service.LOYALTY_EVERY * 100),
+        "loyalty_cards": cards,
+    }
+
+
+@router.get("/lookup", response_model=s.ClientLookupOut)
+def lookup(phone: str, request: Request, db: Session = Depends(get_db)):
+    """Consulta pública de lealtad por teléfono (con throttle; sin email/teléfono en respuesta)."""
+    ip = rate_limit.client_ip(request)
+    if not rate_limit.check("lookup", ip):
+        raise HTTPException(status_code=429, detail="Demasiados intentos, espera un minuto")
+    rate_limit.hit("lookup", ip)
+    client = clients_service.lookup_by_phone(db, phone)
+    if client is None:
+        raise HTTPException(404, "No encontramos ese teléfono, regístralo en tu próxima cita")
+    data = _lookup_payload(db, client.id)
+    return {
+        "name": client.name,
+        "visits": client.visits,
+        "points": client.points,
+        "visits_to_reward": data["visits_to_reward"],
+        "progress_pct": data["progress_pct"],
+        "loyalty_cards": [
+            {"code": c.code, "amount": c.amount, "used": c.used} for c in data["loyalty_cards"]
+        ],
+    }
 
 
 def _map(exc: Exception) -> HTTPException:

@@ -1,14 +1,15 @@
 """CRUD usuarios (solo ADMIN) + asignación de roles + cambio de contraseña."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.application import auth_service, rbac_service
+from app.core.email import get_admin_emails, notify_user_created
 from app.core.exceptions import Conflict, ForbiddenOp, NotFound
 from app.infrastructure.db.base import UserStatus
 from app.infrastructure.db.session import get_db
 from app.infrastructure.repositories import rbac_repo
 from app.presentation import schemas
-from app.presentation.deps import require_role
+from app.presentation.deps import get_current_user, require_role
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"], dependencies=[Depends(require_role("ADMIN"))])
 
@@ -35,12 +36,15 @@ def _out(db: Session, user) -> schemas.UserOut:
 
 
 @router.post("", response_model=schemas.UserOut, status_code=201)
-def create(body: schemas.UserCreate, db: Session = Depends(get_db)):
+def create(body: schemas.UserCreate, background: BackgroundTasks, db: Session = Depends(get_db)):
     try:
         user = rbac_service.create_user(db, username=body.username, email=str(body.email),
                                         full_name=body.full_name, password=body.password)
     except Exception as exc:
         raise _map(exc) from exc
+    admins = get_admin_emails(db)
+    background.add_task(notify_user_created, username=user.username, email=user.email,
+                        full_name=user.full_name, admin_emails=admins)
     return _out(db, user)
 
 
@@ -78,7 +82,10 @@ def update(user_id: int, body: schemas.UserUpdate, db: Session = Depends(get_db)
 
 
 @router.delete("/{user_id}", response_model=schemas.Message, status_code=status.HTTP_200_OK)
-def delete(user_id: int, db: Session = Depends(get_db)):
+def delete(user_id: int, db: Session = Depends(get_db),
+           actor=Depends(get_current_user)):
+    if actor.id == user_id:
+        raise HTTPException(400, "No puedes eliminar tu propio usuario")
     try:
         rbac_service.delete_user(db, user_id)
     except Exception as exc:

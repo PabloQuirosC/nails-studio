@@ -1,9 +1,10 @@
 """Contenido: lectura pública (blog y testimonios), escritura solo staff."""
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.application import content_service
 from app.core import rate_limit
+from app.core.email import get_admin_emails, notify_review_approved, notify_review_received
 from app.core.exceptions import Conflict, NotFound
 from app.infrastructure.db.session import get_db
 from app.presentation import schemas_content
@@ -49,13 +50,12 @@ def list_all_admin(offset: int = 0, limit: int = 50, q: str = "", kind: str = ""
 
 @router.post("/testimonios", response_model=dict, status_code=201)
 def submit_testimonio(body: schemas_content.TestimonioCreate, request: Request,
-                      db: Session = Depends(get_db)):
+                      background: BackgroundTasks, db: Session = Depends(get_db)):
     """Reseña pública: entra como pendiente (published=False) anti-spam con throttle."""
-    ip = request.client.host if request.client else "?"
-    key = f"review|{ip}"
-    if not rate_limit.login_allowed(key):
+    ip = rate_limit.client_ip(request)
+    if not rate_limit.check("review", ip):
         raise HTTPException(status_code=429, detail="Demasiados intentos, espera un minuto")
-    rate_limit.login_hit(key)
+    rate_limit.hit("review", ip)
     try:
         post = content_service.create_post(
             db, title=body.author.strip(), kind="testimonio", excerpt=body.text.strip(),
@@ -65,6 +65,10 @@ def submit_testimonio(body: schemas_content.TestimonioCreate, request: Request,
         )
     except Exception as exc:
         raise _map(exc) from exc
+    admins = get_admin_emails(db)
+    background.add_task(notify_review_received, author=post.author or body.author.strip(),
+                        rating=body.rating, text=body.text.strip(), post_id=post.id,
+                        admin_emails=admins)
     return {"detail": "Reseña recibida, será publicada tras revisión.", "id": post.id}
 
 
@@ -121,12 +125,27 @@ def create(body: schemas_content.PostCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{post_id}", response_model=schemas_content.PostOut,
-            dependencies=[Depends(require_permission("blog.update"))])
-def update(post_id: int, body: schemas_content.PostUpdate, db: Session = Depends(get_db)):
+             dependencies=[Depends(require_permission("blog.update"))])
+def update(post_id: int, body: schemas_content.PostUpdate, background: BackgroundTasks,
+           db: Session = Depends(get_db)):
     try:
-        return content_service.update_post(db, post_id, **body.model_dump(exclude_unset=True))
+        was_published = False
+        was_kind = ""
+        try:
+            prev = content_service.get_by_ref(db, str(post_id), public_only=False)
+            was_published = bool(prev.published)
+            was_kind = prev.kind or ""
+        except Exception:
+            pass
+        post = content_service.update_post(db, post_id, **body.model_dump(exclude_unset=True))
     except Exception as exc:
         raise _map(exc) from exc
+    if post.kind == "testimonio" and post.published and not (was_kind == "testimonio" and was_published):
+        admins = get_admin_emails(db)
+        background.add_task(notify_review_approved, author=post.author or post.title,
+                            rating=post.rating or 5, text=post.excerpt or "",
+                            post_id=post.id, admin_emails=admins)
+    return post
 
 
 @router.delete("/{post_id}", response_model=dict,
