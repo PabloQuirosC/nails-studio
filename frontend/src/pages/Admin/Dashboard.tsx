@@ -78,6 +78,7 @@ import {
   useDeleteSocial,
   SOCIAL_ICONS,
 } from '../../features/contact/contact-api';
+import { useReferralInfo, useUpdateReferralInfo } from '../../features/contact/referral-api';
 import { SocialIcon } from '../../features/contact/social-icons';
 import { resolveImageUrl } from '../../shared/images';
 import { ConfirmDeleteModal, EditModalShell, Modal } from '../../components/ui/Modal';
@@ -197,6 +198,33 @@ export function AdminDashboard() {
   // Referidos: gift cards de lealtad (source=loyalty), mantenimiento separado.
   const [refFilter, setRefFilter] = useState<'all' | 'active' | 'used'>('all');
   const [searchRef, setSearchRef] = useState('');
+  // Contenido del programa (lo que ve /referidos): se inicializa con el servidor.
+  const refInfoQuery = useReferralInfo();
+  const updateRefMut = useUpdateReferralInfo();
+  const [refTitle, setRefTitle] = useState('');
+  const [refSubtitle, setRefSubtitle] = useState('');
+  const [refSteps, setRefSteps] = useState<string[]>(['', '', '']);
+  const [refInit, setRefInit] = useState(false);
+  const [refError, setRefError] = useState('');
+  useEffect(() => {
+    const d = refInfoQuery.data;
+    if (d && !refInit) {
+      setRefTitle(d.title);
+      setRefSubtitle(d.subtitle);
+      setRefSteps([...d.steps, '', '', ''].slice(0, Math.max(3, Math.min(8, d.steps.length))));
+      setRefInit(true);
+    }
+  }, [refInfoQuery.data, refInit]);
+  const handleSaveRefInfo = () => {
+    const steps = refSteps.map(s => s.trim()).filter(Boolean);
+    if (refTitle.trim().length < 2) { setRefError('El título necesita mínimo 2 caracteres.'); return; }
+    if (steps.length === 0) { setRefError('Agrega al menos un paso.'); return; }
+    setRefError('');
+    updateRefMut.mutate(
+      { title: refTitle.trim(), subtitle: refSubtitle.trim(), steps: steps.map(s => s.slice(0, 300)) },
+      { onError: (err) => setRefError(err instanceof Error ? err.message : 'No se pudo guardar') },
+    );
+  };
   const [addGcModal, setAddGcModal] = useState(false);
   const [deleteGcModal, setDeleteGcModal] = useState<{ open: boolean; code: string | null }>({ open: false, code: null });
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -3123,6 +3151,62 @@ export function AdminDashboard() {
         )}
         {tab === 'referidos' && (
           <div className="space-y-4">
+            <Can code="referidos.update">
+              <div className="bg-[#14110c] border border-[#403521] rounded-2xl p-5 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-serif text-lg text-[#faf7f0]">Contenido del programa</h3>
+                    <p className="text-[#b3a893] text-xs mt-0.5">Lo que ven las clientas en la página pública de Referidos.</p>
+                  </div>
+                  <button onClick={handleSaveRefInfo} disabled={updateRefMut.isPending || !onlineRef}
+                    className="px-4 py-2 bg-[#f2d29b] text-[#0d0b09] text-xs font-semibold rounded-lg hover:bg-[#f7ddab] disabled:opacity-60 transition-colors w-fit">
+                    {updateRefMut.isPending ? 'Guardando…' : 'Guardar contenido'}
+                  </button>
+                </div>
+                {!onlineRef ? (
+                  <p className="text-[#b3a893] text-xs font-mono">Sin conexión: el contenido se edita con servidor.</p>
+                ) : (
+                  <div className="space-y-3">
+                    <input
+                      value={refTitle}
+                      onChange={e => setRefTitle(e.target.value)}
+                      placeholder="Título del programa"
+                      maxLength={120}
+                      className="w-full bg-[#0d0b09] border border-[#403521] rounded-xl px-4 py-2.5 text-sm text-[#faf7f0] placeholder-[#6b6355] focus:outline-none focus:border-[#f2d29b]/60 transition-colors"
+                    />
+                    <input
+                      value={refSubtitle}
+                      onChange={e => setRefSubtitle(e.target.value)}
+                      placeholder="Subtítulo"
+                      maxLength={300}
+                      className="w-full bg-[#0d0b09] border border-[#403521] rounded-xl px-4 py-2.5 text-sm text-[#faf7f0] placeholder-[#6b6355] focus:outline-none focus:border-[#f2d29b]/60 transition-colors"
+                    />
+                    {refSteps.map((s, i) => (
+                      <div key={i} className="flex gap-2">
+                        <span className="font-mono text-[#f2d29b] text-xs w-6 shrink-0 pt-3">{String(i + 1).padStart(2, '0')}</span>
+                        <input
+                          value={s}
+                          onChange={e => setRefSteps(prev => prev.map((v, j) => j === i ? e.target.value : v))}
+                          placeholder={`Paso ${i + 1}`}
+                          maxLength={300}
+                          className="flex-1 bg-[#0d0b09] border border-[#403521] rounded-xl px-4 py-2.5 text-sm text-[#faf7f0] placeholder-[#6b6355] focus:outline-none focus:border-[#f2d29b]/60 transition-colors"
+                        />
+                        {refSteps.length > 1 ? (
+                          <button onClick={() => setRefSteps(prev => prev.filter((_, j) => j !== i))} title="Quitar paso"
+                            className="w-10 shrink-0 rounded-xl border border-transparent text-[#6b6355] hover:text-[#e08a6d] hover:bg-[#d4613a]/10 transition-all">×</button>
+                        ) : null}
+                      </div>
+                    ))}
+                    {refSteps.length < 8 ? (
+                      <button onClick={() => setRefSteps(prev => [...prev, ''])}
+                        className="text-xs text-[#f2d29b] hover:underline w-fit">+ Agregar paso</button>
+                    ) : null}
+                    {refError ? <p role="alert" className="text-[#e08a6d] text-xs">{refError}</p> : null}
+                    {updateRefMut.isSuccess ? <p className="text-[#8aab8a] text-xs">Guardado ✓</p> : null}
+                  </div>
+                )}
+              </div>
+            </Can>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="font-serif text-xl text-[#faf7f0]">Referidos · Lealtad</h2>

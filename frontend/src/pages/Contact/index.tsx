@@ -8,6 +8,7 @@ import { SocialIcon } from '../../features/contact/social-icons';
 export function Contact() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' });
   const [sent, setSent] = useState(false);
+  const [sentName, setSentName] = useState('');
   const [sendError, setSendError] = useState('');
 
   // Solo servidor: cargando → skeleton, error → aviso + reintentar. Sin datos fijos.
@@ -31,7 +32,11 @@ export function Contact() {
         message: form.message.trim(),
       },
       {
-        onSuccess: () => setSent(true),
+        onSuccess: () => {
+          setSentName(form.name.trim());
+          setForm({ name: '', email: '', phone: '', message: '' });
+          setSent(true);
+        },
         onError: (err) => setSendError((err as Error).message || 'No se pudo enviar. Intenta de nuevo.'),
       },
     );
@@ -118,7 +123,7 @@ export function Contact() {
             {[
               { key: 'name', label: 'Nombre', type: 'text', placeholder: 'Tu nombre', auto: 'name' },
               { key: 'email', label: 'Email', type: 'email', placeholder: 'tu@email.com', auto: 'email' },
-              { key: 'phone', label: 'Teléfono', type: 'tel', placeholder: '+52 55 ...', auto: 'tel' },
+              { key: 'phone', label: 'Teléfono', type: 'tel', placeholder: '+506 8888 8888', auto: 'tel' },
             ].map(f => (
               <div key={f.key}>
                 <label htmlFor={`contact-${f.key}`} className="text-[#b3a893] text-xs font-mono uppercase tracking-widest mb-2 block">{f.label}</label>
@@ -150,7 +155,7 @@ export function Contact() {
           <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[#f2d29b]/10 border border-[#f2d29b]/30 flex items-center justify-center">
             <Mail size={22} className="text-[#f2d29b]" aria-hidden="true" />
           </div>
-          <p className="text-[#b3a893] text-sm leading-relaxed mb-5 max-w-[40ch] mx-auto">Gracias{form.name ? ` ${form.name}` : ''}, recibimos tu mensaje. Te responderemos en menos de 24 horas.</p>
+          <p className="text-[#b3a893] text-sm leading-relaxed mb-5 max-w-[40ch] mx-auto">Gracias{sentName ? ` ${sentName}` : ''}, recibimos tu mensaje. Te responderemos en menos de 24 horas.</p>
           <button onClick={() => setSent(false)} className="px-6 py-2.5 bg-[#f2d29b] text-[#0d0b09] rounded hover:bg-[#f7ddab] active:scale-[0.98] text-sm font-medium transition-[transform,background-color] duration-150">
             Cerrar
           </button>

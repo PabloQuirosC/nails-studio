@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Gift, Search, Share2 } from 'lucide-react';
 import { Toast } from '../../components/ui/Modal';
 import { apiFetch, ApiError } from '../../shared/auth/api-client';
+import { REFERRAL_DEFAULTS, useReferralInfo } from '../../features/contact/referral-api';
 
 interface LoyaltyCard {
   code: string;
@@ -24,6 +25,9 @@ export function Referrals() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Lookup | null>(null);
+  // Contenido administrable (con valores por defecto si no hay servidor).
+  const infoQuery = useReferralInfo();
+  const program = infoQuery.data ?? REFERRAL_DEFAULTS;
 
   const showToast = (msg: string) => {
     setToast({ msg, visible: true });
@@ -65,24 +69,21 @@ export function Referrals() {
         </div>
 
         <div className="max-w-2xl mx-auto space-y-6">
-          {/* Programa */}
+          {/* Programa (contenido administrable desde el panel) */}
           <div className="bg-[#14110c] border border-[#403521] rounded-xl p-8">
-            <div className="flex items-center gap-3 mb-6">
+            <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-full bg-[#f2d29b]/15 flex items-center justify-center">
                 <Share2 size={18} className="text-[#f2d29b]" />
               </div>
-              <h2 className="font-serif text-xl text-[#faf7f0]">Programa de referidos</h2>
+              <h2 className="font-serif text-xl text-[#faf7f0]">{program.title}</h2>
             </div>
+            <p className="text-[#b3a893] text-sm mb-6">{program.subtitle}</p>
 
             <div className="space-y-4">
-              {[
-                { step: '01', text: 'Comparte el estudio con tus amigas e invítalas a agendar' },
-                { step: '02', text: 'Cada 10 visitas acumulas una gift card de lealtad' },
-                { step: '03', text: 'Consulta aquí tu saldo con el teléfono de tu registro' },
-              ].map(s => (
-                <div key={s.step} className="flex gap-4">
-                  <span className="font-mono text-[#f2d29b] text-xs w-6 shrink-0 pt-0.5">{s.step}</span>
-                  <p className="text-[#b3a893] text-sm leading-relaxed">{s.text}</p>
+              {program.steps.map((text, i) => (
+                <div key={i} className="flex gap-4">
+                  <span className="font-mono text-[#f2d29b] text-xs w-6 shrink-0 pt-0.5">{String(i + 1).padStart(2, '0')}</span>
+                  <p className="text-[#b3a893] text-sm leading-relaxed">{text}</p>
                 </div>
               ))}
             </div>
@@ -102,7 +103,7 @@ export function Referrals() {
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && void lookup()}
-                placeholder="Tu teléfono, ej. +52 55 1234 5678"
+                placeholder="Tu teléfono, ej. +506 8888 8888"
                 inputMode="tel"
                 className="flex-1 bg-[#0d0b09] border border-[#403521] rounded-lg px-4 py-2.5 text-sm text-[#faf7f0] placeholder-[#6b6355] focus:outline-none focus:border-[#f2d29b]/60 transition-colors"
               />
