@@ -980,7 +980,7 @@ export function AdminDashboard() {
     id: u.id,
     name: u.full_name,
     email: u.email,
-    role: (u.roles[0] ?? 'staff').toLowerCase(),
+    role: (u.roles[0] ?? 'sin rol').toLowerCase(),
     active: u.status === 'ACTIVE',
     lastLogin: formatLastLogin(u.last_login),
   });
@@ -1133,6 +1133,9 @@ export function AdminDashboard() {
             if (newRole && newRole !== oldRole && serverRolesQuery.data) {
               const oldTarget = serverRolesQuery.data.find(r => r.name.toLowerCase() === oldRole);
               const newTarget = serverRolesQuery.data.find(r => r.name.toLowerCase() === newRole);
+              if (!newTarget) {
+                throw new Error(`El rol "${editUser.role}" no existe en el servidor. Elige uno de la lista.`);
+              }
               if (oldTarget) {
                 await apiFetch(`/api/v1/usuarios/${editUserId}/roles/${oldTarget.id}`, { method: 'DELETE', block: false });
               }
@@ -4150,6 +4153,9 @@ export function AdminDashboard() {
             <label className="text-[#b3a893] text-xs font-mono uppercase tracking-widest block mb-1.5">Rol</label>
             <select value={editUser.role} onChange={e => setEditUser(u => ({ ...u, role: e.target.value }))}
               className={inputCls}>
+              {(serverRolesQuery.data ?? []).some(r => r.name.toLowerCase() === editUser.role.toLowerCase()) ? null : (
+                <option value={editUser.role} disabled>Sin rol — elige uno</option>
+              )}
               {(serverRolesQuery.data ?? []).map(r => <option key={r.id} value={r.name.toLowerCase()}>{r.name}</option>)}
             </select>
           </div>
