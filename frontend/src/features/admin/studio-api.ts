@@ -186,6 +186,21 @@ export function useServerAppointments(day = '', status = '') {
   });
 }
 
+/** Historial de citas de una clienta (para su ficha). Requiere reservas.read. */
+export function useClientAppointments(clientId: number | null) {
+  return useQuery({
+    queryKey: ['studio', 'appointments', 'client', clientId],
+    queryFn: () =>
+      apiFetch<Page<Appointment>>(
+        `/api/v1/appointments?offset=0&limit=100&client_id=${clientId}`,
+        { message: 'Cargando historial…' },
+      ),
+    enabled: clientId !== null,
+    retry: 1,
+    staleTime: 15_000,
+  });
+}
+
 export function useCreateAppointment() {
   const qc = useQueryClient();
   return useMutation({

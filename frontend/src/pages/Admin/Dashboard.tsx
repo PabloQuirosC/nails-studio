@@ -49,6 +49,7 @@ import {
   useUpdateClient,
   useUpdateDesign,
   useServerAppointments,
+  useClientAppointments,
   useServerCategories,
   useServerClients,
   useServerDesigns,
@@ -204,6 +205,12 @@ export function AdminDashboard() {
     // La protección real la hace <ProtectedRoute>; aquí solo hidratamos por si entra directo.
     void useAuthStore.getState().hydrate();
   }, []);
+
+  // Usuario real de la sesión para el sidebar (nada hardcodeado).
+  const sessionUser = useAuthStore(s => s.user);
+  const sessionName = sessionUser?.full_name?.trim() || sessionUser?.username || 'Staff';
+  const sessionRole = sessionUser?.roles?.[0] ?? '';
+  const sessionInitial = (sessionName.trim()[0] ?? '?').toUpperCase();
 
   const handleLogout = () => {
     void useAuthStore.getState().logout().then(() => navigate('/admin', { replace: true }));
@@ -1476,6 +1483,7 @@ export function AdminDashboard() {
   const [newClient, setNewClient] = useState({ name: '', phone: '', email: '' });
   const [clientError, setClientError] = useState('');
   const [rewardsFor, setRewardsFor] = useState<number | null>(null);
+  const [historyFor, setHistoryFor] = useState<number | null>(null);
   const [editClientId, setEditClientId] = useState<number | null>(null);
   const [editClient, setEditClient] = useState({ name: '', phone: '', email: '', notes: '' });
   const [editClientError, setEditClientError] = useState('');
@@ -1813,10 +1821,10 @@ export function AdminDashboard() {
         <div className="relative p-3 border-t border-[#3a2f1e]/70 space-y-2" style={{ background: 'rgba(0,0,0,0.25)' }}>
           <div className="flex items-center gap-3 px-2 py-2 rounded-xl border border-[#403521]/70 bg-white/[0.02]">
             <div className="w-9 h-9 rounded-full flex items-center justify-center font-serif text-sm shrink-0 border border-[#f2d29b]/40 text-[#f9e9c8]"
-              style={{ background: 'linear-gradient(135deg,#2a2013,#120e0a)' }}>F</div>
+              style={{ background: 'linear-gradient(135deg,#2a2013,#120e0a)' }}>{sessionInitial}</div>
             <div className="flex-1 min-w-0">
-              <p className="text-[#faf7f0] text-[13px] font-medium truncate">Fernanda Torres</p>
-              <p className="text-[#b3a893] text-[11px] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#8aab8a] animate-pulse" /> Administradora</p>
+              <p className="text-[#faf7f0] text-[13px] font-medium truncate">{sessionName}</p>
+              <p className="text-[#b3a893] text-[11px] flex items-center gap-1.5 truncate"><span className="w-1.5 h-1.5 rounded-full bg-[#8aab8a] animate-pulse shrink-0" /> {sessionRole || 'Sesión activa'}</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -2640,9 +2648,12 @@ export function AdminDashboard() {
                               className="flex-1 py-2 border border-[#f2d29b]/30 text-[#f2d29b] hover:bg-[#f2d29b]/10 text-xs rounded-xl transition-all flex items-center justify-center gap-1.5">
                               <Gift size={12} /> Lealtad
                             </button>
-                            <button className="flex-1 py-2 border border-[#403521] text-[#b3a893] hover:text-[#f9e9c8] hover:border-[#f2d29b]/40 text-xs rounded-xl transition-all flex items-center justify-center gap-1.5">
-                              <ChevronDown size={12} /> Historial
-                            </button>
+                            <Can code="reservas.read">
+                              <button onClick={() => setHistoryFor(c.id)}
+                                className="flex-1 py-2 border border-[#403521] text-[#b3a893] hover:text-[#f9e9c8] hover:border-[#f2d29b]/40 text-xs rounded-xl transition-all flex items-center justify-center gap-1.5">
+                                <ChevronDown size={12} /> Historial
+                              </button>
+                            </Can>
                             <button className="flex-1 py-2 bg-[#8aab8a]/10 border border-[#8aab8a]/25 text-[#a8c8a8] hover:bg-[#8aab8a]/20 text-xs rounded-xl transition-all flex items-center justify-center gap-1.5">
                               <MessageCircle size={12} /> WhatsApp
                             </button>
@@ -4400,6 +4411,18 @@ export function AdminDashboard() {
         </div>
       </Modal>
 
+      {/* Historial de citas por clienta */}
+      <Modal open={historyFor !== null} onClose={() => setHistoryFor(null)} title="Historial de citas" size="sm">
+        <ClientHistoryBody
+          clientId={historyFor}
+          clientName={effClientsBase.find(c => c.id === historyFor)?.name ?? ''}
+          fallbackLastVisit={effClientsBase.find(c => c.id === historyFor)?.lastVisit ?? '—'}
+          designNameById={designNameById}
+          statusMeta={STATUS_META}
+          online={onlineClients}
+        />
+      </Modal>
+
       {/* Edit client */}
       <EditModalShell
         open={editClientId !== null}
@@ -5033,6 +5056,73 @@ function RewardsBody({ clientId, clientName, points, pointsFor, setPointsFor, ad
           </Can>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Historial de citas de una clienta (última cita destacada + lista) ───────
+function ClientHistoryBody({ clientId, clientName, fallbackLastVisit, designNameById, statusMeta, online }: {
+  clientId: number | null;
+  clientName: string;
+  fallbackLastVisit: string;
+  designNameById: Map<number, string>;
+  statusMeta: Record<string, { label: string; cls: string }>;
+  online: boolean;
+}) {
+  const query = useClientAppointments(online && clientId !== null ? clientId : null);
+  const items = [...(query.data?.items ?? [])].sort((a, b) => b.starts_at.localeCompare(a.starts_at));
+  const nowIso = new Date().toISOString().slice(0, 16);
+  const lastPast = items.find(a => a.starts_at.slice(0, 16) <= nowIso);
+  const lastLabel = lastPast
+    ? new Date(lastPast.starts_at).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    : fallbackLastVisit;
+  if (clientId === null) return null;
+  return (
+    <div>
+      <div className="rounded-xl border border-[#f2d29b]/25 bg-[#f2d29b]/[0.06] px-4 py-3 mb-4">
+        <p className="text-[#b3a893] text-[11px] font-mono uppercase tracking-widest">Última cita · {clientName || 'Clienta'}</p>
+        <p className="font-serif text-[#faf7f0] text-lg mt-0.5 capitalize">{lastLabel}</p>
+        <p className="text-[#6b6355] text-[11px] font-mono mt-0.5">{items.length} cita(s) en total</p>
+      </div>
+      {query.isLoading ? (
+        <p className="text-[#b3a893] text-xs font-mono animate-pulse py-6 text-center">Cargando historial…</p>
+      ) : query.isError ? (
+        <div role="alert" className="text-center py-6">
+          <p className="text-[#e08a6d] text-xs">{(query.error as Error)?.message ?? 'Error de conexión'}</p>
+          <button onClick={() => void query.refetch()}
+            className="mt-3 px-4 py-2 bg-[#f2d29b] text-[#0d0b09] text-xs font-semibold rounded-lg hover:bg-[#f7ddab] transition-colors">
+            Reintentar
+          </button>
+        </div>
+      ) : items.length === 0 ? (
+        <p className="text-[#b3a893] text-xs text-center py-6">Sin citas registradas para esta clienta.</p>
+      ) : (
+        <ol className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+          {items.map(a => {
+            const meta = statusMeta[a.status] ?? statusMeta.pending;
+            return (
+              <li key={a.id} className="rounded-xl border border-[#403521]/70 bg-[#0d0b09]/60 px-3.5 py-3">
+                <div className="flex items-center gap-2">
+                  <p className="text-[#faf7f0] text-[13px] font-medium">
+                    {new Date(a.starts_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
+                  <p className="text-[#b3a893] text-xs font-mono">
+                    {a.starts_at.slice(11, 16)}–{a.ends_at.slice(11, 16)}
+                  </p>
+                  <span className={`ml-auto text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 ${meta.cls}`}>
+                    {meta.label}
+                  </span>
+                </div>
+                <p className="text-[#b3a893] text-xs mt-1 truncate">
+                  {a.design_id ? (designNameById.get(a.design_id) ?? `Diseño #${a.design_id}`) : 'Servicio general'}
+                  {a.artist_name ? ` · ${a.artist_name}` : ''}
+                </p>
+                {a.notes && <p className="text-[#6b6355] text-xs mt-1 line-clamp-2">{a.notes}</p>}
+              </li>
+            );
+          })}
+        </ol>
+      )}
     </div>
   );
 }
