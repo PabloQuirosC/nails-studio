@@ -28,6 +28,8 @@ export async function apiFetch<T>(path: string, init?: ApiInit): Promise<T> {
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (memoryToken) headers.Authorization = `Bearer ${memoryToken}`;
+    const method = (rest.method ?? 'GET').toString().toUpperCase();
+    if (method !== 'GET' && method !== 'HEAD') headers['X-Requested-With'] = 'fetch';
     const res = await fetch(`${API_URL}${path}`, {
       ...rest,
       headers: { ...headers, ...(rest.headers as Record<string, string> | undefined) },

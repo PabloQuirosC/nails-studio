@@ -1,18 +1,58 @@
 import { useState } from 'react';
-import { Share2 } from 'lucide-react';
+import { Gift, Search, Share2 } from 'lucide-react';
 import { Toast } from '../../components/ui/Modal';
+import { apiFetch, ApiError } from '../../shared/auth/api-client';
+
+interface LoyaltyCard {
+  code: string;
+  amount: number;
+  used: boolean;
+}
+
+interface Lookup {
+  name: string;
+  visits: number;
+  points: number;
+  visits_to_reward: number;
+  progress_pct: number;
+  loyalty_cards: LoyaltyCard[];
+}
 
 export function Referrals() {
   const [toast, setToast] = useState({ msg: '', visible: false });
-  const REFERRAL_CODE = 'NAILS-AMIGA24';
+  const [phone, setPhone] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<Lookup | null>(null);
 
   const showToast = (msg: string) => {
     setToast({ msg, visible: true });
     setTimeout(() => setToast(t => ({ ...t, visible: false })), 2000);
   };
 
-  const copyCode = () => {
-    navigator.clipboard?.writeText(REFERRAL_CODE).then(() => showToast('¡Código copiado!'));
+  const lookup = async () => {
+    const clean = phone.trim();
+    if (clean.length < 5) {
+      setError('Escribe tu teléfono tal como lo registraste en el estudio.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const data = await apiFetch<Lookup>(`/api/v1/clients/lookup?phone=${encodeURIComponent(clean)}`, {
+        message: 'Buscando tu saldo…',
+      });
+      setResult(data);
+    } catch (err) {
+      setResult(null);
+      setError(err instanceof ApiError ? err.message : 'No se pudo conectar con el servidor');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copyCode = (code: string) => {
+    navigator.clipboard?.writeText(code).then(() => showToast('¡Código copiado!')).catch(() => undefined);
   };
 
   return (
@@ -24,8 +64,8 @@ export function Referrals() {
           <h1 className="font-serif text-4xl text-[#faf7f0]">Referidos</h1>
         </div>
 
-        <div className="max-w-2xl mx-auto">
-          {/* Referral */}
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Programa */}
           <div className="bg-[#14110c] border border-[#403521] rounded-xl p-8">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-full bg-[#f2d29b]/15 flex items-center justify-center">
@@ -34,11 +74,11 @@ export function Referrals() {
               <h2 className="font-serif text-xl text-[#faf7f0]">Programa de referidos</h2>
             </div>
 
-            <div className="space-y-4 mb-8">
+            <div className="space-y-4">
               {[
-                { step: '01', text: 'Comparte tu código único con amigas' },
-                { step: '02', text: 'Tu amiga obtiene $100 de descuento en su primera cita' },
-                { step: '03', text: 'Tú recibes $150 de crédito cuando ella venga' },
+                { step: '01', text: 'Comparte el estudio con tus amigas e invítalas a agendar' },
+                { step: '02', text: 'Cada 10 visitas acumulas una gift card de lealtad' },
+                { step: '03', text: 'Consulta aquí tu saldo con el teléfono de tu registro' },
               ].map(s => (
                 <div key={s.step} className="flex gap-4">
                   <span className="font-mono text-[#f2d29b] text-xs w-6 shrink-0 pt-0.5">{s.step}</span>
@@ -46,16 +86,78 @@ export function Referrals() {
                 </div>
               ))}
             </div>
+          </div>
 
-            <div className="bg-[#332a1d] border border-[#f2d29b]/20 rounded-lg p-4">
-              <p className="text-[#b3a893] text-xs font-mono mb-2">Tu código de referido</p>
-              <div className="flex items-center gap-3">
-                <p className="font-mono text-[#f2d29b] text-xl flex-1">{REFERRAL_CODE}</p>
-                <button onClick={copyCode} className="px-3 py-1.5 border border-[#f2d29b]/40 text-[#f2d29b] text-xs rounded hover:bg-[#f2d29b]/10 transition-colors">
-                  Copiar
-                </button>
+          {/* Consulta real por teléfono */}
+          <div className="bg-[#14110c] border border-[#403521] rounded-xl p-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-full bg-[#f2d29b]/15 flex items-center justify-center">
+                <Search size={18} className="text-[#f2d29b]" />
               </div>
+              <h2 className="font-serif text-xl text-[#faf7f0]">Consulta tu saldo</h2>
             </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && void lookup()}
+                placeholder="Tu teléfono, ej. +52 55 1234 5678"
+                inputMode="tel"
+                className="flex-1 bg-[#0d0b09] border border-[#403521] rounded-lg px-4 py-2.5 text-sm text-[#faf7f0] placeholder-[#6b6355] focus:outline-none focus:border-[#f2d29b]/60 transition-colors"
+              />
+              <button
+                onClick={() => void lookup()}
+                disabled={busy}
+                className="px-5 py-2.5 bg-[#f2d29b] text-[#0d0b09] text-sm font-semibold rounded-lg hover:bg-[#f7ddab] disabled:opacity-60 transition-colors"
+              >
+                {busy ? 'Buscando…' : 'Consultar'}
+              </button>
+            </div>
+
+            {error ? (
+              <p role="alert" className="text-[#e08a6d] text-sm mt-4">{error}</p>
+            ) : null}
+
+            {result ? (
+              <div className="mt-6 space-y-5">
+                <div>
+                  <p className="font-serif text-lg text-[#faf7f0]">Hola, {result.name}</p>
+                  <p className="text-[#b3a893] text-xs mt-1 font-mono">
+                    {result.visits} visitas · {result.points} puntos ·{' '}
+                    {result.visits_to_reward === 0
+                      ? 'tienes recompensa disponible'
+                      : `te faltan ${result.visits_to_reward} visitas para tu gift card`}
+                  </p>
+                  <div className="h-1.5 mt-3 bg-[#332a1d] rounded-full overflow-hidden" aria-hidden="true">
+                    <div className="h-full bg-[#f2d29b] rounded-full transition-all" style={{ width: `${result.progress_pct}%` }} />
+                  </div>
+                </div>
+
+                {result.loyalty_cards.length > 0 ? (
+                  <div className="space-y-2">
+                    {result.loyalty_cards.map(c => (
+                      <div key={c.code} className="flex items-center justify-between gap-3 bg-[#0d0b09] border border-[#403521] rounded-lg px-4 py-3">
+                        <span className="flex items-center gap-2 text-sm">
+                          <Gift size={14} className={c.used ? 'text-[#6b6355]' : 'text-[#f2d29b]'} />
+                          <span className="font-mono text-[#f9e9c8] text-xs tracking-widest">{c.code}</span>
+                          <span className="text-[#b3a893] text-xs">₡{c.amount.toLocaleString()}</span>
+                        </span>
+                        {c.used ? (
+                          <span className="text-[#6b6355] text-xs">Canjeada</span>
+                        ) : (
+                          <button onClick={() => copyCode(c.code)} className="text-[#f2d29b] text-xs hover:underline">
+                            Copiar
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[#b3a893] text-sm">Aún no tienes gift cards de lealtad. ¡Cada visita te acerca!</p>
+                )}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

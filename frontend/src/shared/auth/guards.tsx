@@ -16,11 +16,8 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   }, [hydrated, user, navigate]);
 
   if (!hydrated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#060505]">
-        <p className="font-mono text-[#f2d29b] text-xs tracking-[0.3em] uppercase animate-pulse">Verificando sesión…</p>
-      </div>
-    );
+    // Sin texto: fondo neutro mientras se confirma la sesión (sin flash).
+    return <div className="min-h-screen bg-[#060505]" aria-hidden="true" />;
   }
   if (!user) return null;
   return <>{children}</>;

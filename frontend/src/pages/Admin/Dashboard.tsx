@@ -5,7 +5,7 @@ import {
   Bell, LogOut, Plus, Trash2, Edit3, ChevronDown,
   ChevronLeft, ChevronRight, Shield, Check, X as XIcon,
   Search, UserPlus, Key, Clock, ArrowRight, Sparkles,
-  Phone, MessageCircle, Crown, Copy, Star, BookOpen, Heart, Mail,
+  Phone, MessageCircle, Crown, Copy, Star, BookOpen, Heart, Mail, Share2,
 } from 'lucide-react';
 import { DESIGNS, CATEGORIES } from '../../data';
 import { useAuthStore } from '../../shared/auth/auth-store';
@@ -92,6 +92,7 @@ const TABS = [
   { id: 'clients',   label: 'Clientas',  icon: Users     },
   { id: 'users',     label: 'Usuarios',  icon: Shield    },
   { id: 'giftcards', label: 'Gift Cards',icon: Gift      },
+  { id: 'referidos', label: 'Referidos', icon: Share2    },
   { id: 'reviews',   label: 'Reseñas',   icon: Star      },
   { id: 'blog',      label: 'Blog',      icon: BookOpen  },
   { id: 'nosotros',  label: 'Nosotros',  icon: Heart     },
@@ -193,6 +194,9 @@ export function AdminDashboard() {
   const [giftCards, setGiftCards] = useState(MOCK_GIFTCARDS.map(g => ({ ...g, recipient: '', created: 'Sep 2026' })));
   const [gcFilter, setGcFilter] = useState<'all' | 'active' | 'used'>('all');
   const [searchGc, setSearchGc] = useState('');
+  // Referidos: gift cards de lealtad (source=loyalty), mantenimiento separado.
+  const [refFilter, setRefFilter] = useState<'all' | 'active' | 'used'>('all');
+  const [searchRef, setSearchRef] = useState('');
   const [addGcModal, setAddGcModal] = useState(false);
   const [deleteGcModal, setDeleteGcModal] = useState<{ open: boolean; code: string | null }>({ open: false, code: null });
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -272,11 +276,20 @@ export function AdminDashboard() {
     for (let i = 0; i < 4; i++) s += chars[Math.floor(Math.random() * chars.length)];
     return `NS-GC-${s}`;
   };
-  const serverGcQuery = useServerGiftCards('all', searchGc);
+  const serverGcQuery = useServerGiftCards('all', searchGc, 'manual');
   const onlineGc = serverGcQuery.data !== undefined;
   const serverGcItems = (serverGcQuery.data?.items ?? []).map(g => ({
     ...g, recipient: g.recipient ?? '', created: 'Servidor',
   }));
+  // Tab Referidos: solo lealtad; sin mocks (aviso + Reintentar si no hay servidor).
+  const serverRefQuery = useServerGiftCards(refFilter, searchRef, 'loyalty');
+  const onlineRef = serverRefQuery.data !== undefined;
+  const refItems = (serverRefQuery.data?.items ?? []).map(g => ({
+    ...g, recipient: g.recipient ?? '', created: 'Servidor',
+  }));
+  const refTotal = serverRefQuery.data?.total ?? 0;
+  const refActiveValue = refItems.filter(g => !g.used).reduce((a, g) => a + g.amount, 0);
+  const refUsedValue = refItems.filter(g => g.used).reduce((a, g) => a + g.amount, 0);
   const gcSource = onlineGc ? serverGcItems : giftCards;
   const gcAmountOf = (g: { amount: number }) => g.amount;
   const gcActiveValue = gcSource.filter(g => !g.used).reduce((a, g) => a + gcAmountOf(g), 0);
@@ -317,15 +330,16 @@ export function AdminDashboard() {
     setGcFilter('all');
   };
   const toggleGcUsed = (code: string) => {
-    if (onlineGc) {
-      const current = gcSource.find(g => g.code === code);
-      if (!current) return;
+    const current = gcSource.find(g => g.code === code)
+      ?? (onlineRef ? refItems.find(g => g.code === code) : undefined);
+    if (current) {
       setGcUsedMut.mutate(
         { code, used: !current.used },
         { onError: (err) => { if (isOffline(err)) setGiftCards(gs => gs.map(g => g.code === code ? { ...g, used: !g.used } : g)); } },
       );
       return;
     }
+    if (onlineGc) return;
     setGiftCards(gs => gs.map(g => g.code === code ? { ...g, used: !g.used } : g));
   };
   const confirmDeleteGc = () => {
@@ -1427,6 +1441,15 @@ export function AdminDashboard() {
   const todayApptsQuery = useServerAppointments(todayStr);
   const onlineToday = todayApptsQuery.data !== undefined;
   const todayAppts = todayApptsQuery.data?.items ?? [];
+  // Saludo real: nombre de sesión + fecha de hoy + resumen de citas de hoy.
+  const _hour = new Date().getHours();
+  const greetWord = _hour < 12 ? 'Buenos días' : _hour < 19 ? 'Buenas tardes' : 'Buenas noches';
+  const todayLabel = new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
+  const todayActive = todayAppts.filter(a => a.status !== 'cancelled');
+  const nextAppt = todayActive
+    .filter(a => a.status === 'pending' || a.status === 'confirmed')
+    .map(a => a.starts_at.slice(11, 16))
+    .sort()[0] ?? null;
 
   const createApptMut = useCreateAppointment();
   const setApptStatusMut = useSetAppointmentStatus();
@@ -1770,15 +1793,16 @@ export function AdminDashboard() {
         <div className="relative px-5 pt-6 pb-5 border-b border-[#3a2f1e]/70">
           <div className="flex items-center gap-3 animate-fade-in">
             <div className="relative">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center border border-[#f2d29b]/40"
-                style={{ background: 'linear-gradient(135deg,#2a2013,#120e0a)', boxShadow: '0 0 20px rgba(242,210,155,0.25)' }}>
-                <Sparkles size={16} className="text-[#f9e9c8]" />
-              </div>
+              <img
+                src="/logo.jpg"
+                alt="Nails Studio"
+                className="w-10 h-10 rounded-2xl object-cover border border-[#f2d29b]/40"
+                style={{ boxShadow: '0 0 20px rgba(242,210,155,0.25)' }}
+              />
               <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#8aab8a] border-2 border-[#0d0b09]" title="En línea" />
             </div>
             <div>
               <p className="font-serif text-[17px] leading-none text-[#faf7f0]">Nails <span className="text-gradient-subtle">Studio</span></p>
-              <p className="font-mono text-[#f2d29b] text-[9px] tracking-[0.3em] uppercase mt-1.5">Admin · Atelier</p>
             </div>
           </div>
         </div>
@@ -1788,7 +1812,7 @@ export function AdminDashboard() {
           {([
             { section: 'Gestión', ids: ['overview', 'catalog', 'agenda'] },
             { section: 'Personas', ids: ['clients', 'users'] },
-            { section: 'Negocio', ids: ['giftcards', 'reviews', 'blog', 'nosotros', 'contacto'] },
+            { section: 'Negocio', ids: ['giftcards', 'referidos', 'reviews', 'blog', 'nosotros', 'contacto'] },
           ] as const).map(group => (
             <div key={group.section}>
               <p className="px-3 mb-2 font-mono text-[9px] tracking-[0.28em] uppercase text-[#6b6355]">{group.section}</p>
@@ -1874,13 +1898,21 @@ export function AdminDashboard() {
               <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-5 justify-between">
                 <div>
                   <p className="font-mono text-[#f2d29b] text-[10px] tracking-[0.28em] uppercase mb-2 flex items-center gap-2">
-                    <Sparkles size={11} /> Jueves 18 · Septiembre 2026
+                    <Sparkles size={11} /> <span className="capitalize">{todayLabel}</span>
                   </p>
                   <h2 className="font-serif text-[#faf7f0] leading-tight" style={{ fontSize: 'clamp(1.5rem, 3vw, 2.1rem)' }}>
-                    Buenos días, Fernanda
+                    {greetWord}, {sessionName}
                   </h2>
                   <p className="text-[#b3a893] text-sm mt-1">
-                    Tienes <span className="text-[#f9e9c8] font-medium">4 citas hoy</span> · ocupación al 68% · próxima a las 10:00
+                    {onlineToday ? (
+                      todayActive.length === 0 ? (
+                        <>Sin citas hoy. La agenda está libre.</>
+                      ) : (
+                        <>Tienes <span className="text-[#f9e9c8] font-medium">{todayActive.length} cita{todayActive.length === 1 ? '' : 's'} hoy</span>{nextAppt ? <> · próxima a las {nextAppt}</> : null}</>
+                      )
+                    ) : (
+                      <>Conecta el servidor para ver tu día.</>
+                    )}
                   </p>
                 </div>
                 <div className="flex gap-3 shrink-0">
@@ -3062,6 +3094,131 @@ export function AdminDashboard() {
                     <div className="flex justify-between text-xs mt-3">
                       <span className="text-[#b3a893]">De: <span className="text-[#faf7f0]">{g.buyer}</span></span>
                       {g.recipient ? <span className="text-[#b3a893]">Para: <span className="text-[#f9e9c8]">{g.recipient}</span></span> : <span className="text-[#6b6355]">{g.created}</span>}
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      <Can code="giftcards.update">
+                        <button onClick={() => toggleGcUsed(g.code)}
+                          className="flex-1 py-2 text-xs rounded-xl border border-[#403521] text-[#b3a893] hover:text-[#f9e9c8] hover:border-[#f2d29b]/40 transition-all">
+                          {g.used ? 'Reactivar' : 'Marcar canjeada'}
+                        </button>
+                      </Can>
+                      <Can code="giftcards.update">
+                        <button onClick={() => openEditGc(g)} title="Editar"
+                          className="w-10 flex items-center justify-center rounded-xl border border-transparent text-[#b3a893] hover:text-[#f2d29b] hover:bg-[#f2d29b]/10 hover:border-[#f2d29b]/30 transition-all">
+                          <Edit3 size={14} />
+                        </button>
+                      </Can>
+                      <Can code="giftcards.delete">
+                        <button onClick={() => setDeleteGcModal({ open: true, code: g.code })} title="Eliminar"
+                          className="w-10 flex items-center justify-center rounded-xl border border-transparent text-[#6b6355] hover:text-[#e08a6d] hover:bg-[#d4613a]/10 hover:border-[#d4613a]/30 transition-all">
+                          <Trash2 size={14} />
+                        </button>
+                      </Can>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {tab === 'referidos' && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="font-serif text-xl text-[#faf7f0]">Referidos · Lealtad</h2>
+                <p className="text-[#b3a893] text-xs mt-0.5">Gift cards generadas por el programa (solo mantenimiento: canjear, editar, eliminar).</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="inline-flex p-1 rounded-xl bg-[#14110c] border border-[#403521] w-fit">
+                  {([
+                    { id: 'all', label: `Todas (${refTotal})` },
+                    { id: 'active', label: `Activas (${refItems.filter(g => !g.used).length})` },
+                    { id: 'used', label: `Canjeadas (${refItems.filter(g => g.used).length})` },
+                  ] as const).map(f => (
+                    <button key={f.id} onClick={() => setRefFilter(f.id)}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${refFilter === f.id ? 'bg-[#f2d29b] text-[#0d0b09]' : 'text-[#b3a893] hover:text-[#f9e9c8]'}`}>
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+                {onlineRef ? (
+                  <span className="font-mono text-[10px] uppercase tracking-widest px-2.5 py-2 rounded-full bg-[#8aab8a]/10 text-[#8aab8a] border border-[#8aab8a]/25">● Servidor</span>
+                ) : (
+                  <span className="font-mono text-[10px] uppercase tracking-widest px-2.5 py-2 rounded-full bg-[#332a1d] text-[#b3a893] border border-[#403521]">○ Sin conexión</span>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              {[
+                { label: 'Emitidas', value: String(refTotal), sub: 'por referidos' },
+                { label: 'Valor activo', value: `₡${refActiveValue.toLocaleString()}`, sub: 'por canjear' },
+                { label: 'Valor canjeado', value: `₡${refUsedValue.toLocaleString()}`, sub: 'ingreso realizado' },
+              ].map(k => (
+                <div key={k.label} className="bg-[#14110c] border border-[#403521] rounded-2xl px-5 py-4">
+                  <p className="text-[#b3a893] text-[11px] font-mono uppercase tracking-widest">{k.label}</p>
+                  <p className="font-serif text-2xl text-[#faf7f0] mt-1">{k.value}</p>
+                  <p className="text-[#f2d29b]/80 text-xs mt-0.5">{k.sub}</p>
+                </div>
+              ))}
+            </div>
+            <div className="bg-[#14110c] border border-[#403521] rounded-2xl p-4 flex flex-col md:flex-row gap-3 md:items-center justify-between">
+              <div className="relative">
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6b6355]" />
+                <input
+                  value={searchRef}
+                  onChange={e => setSearchRef(e.target.value)}
+                  placeholder="Buscar por código o comprador…"
+                  className="pl-10 pr-4 py-2.5 bg-[#0d0b09] border border-[#403521] rounded-xl text-sm text-[#faf7f0] placeholder-[#6b6355] focus:outline-none focus:border-[#f2d29b]/60 w-full md:w-72 transition-all"
+                />
+              </div>
+              <p className="text-[#b3a893] text-xs font-mono">{refItems.length} resultado(s)</p>
+            </div>
+            {serverRefQuery.isLoading ? (
+              <div className="bg-[#14110c] border border-[#403521] rounded-2xl py-14 text-center">
+                <p className="font-mono text-[#f2d29b] text-xs tracking-[0.3em] uppercase animate-pulse">Cargando referidos…</p>
+              </div>
+            ) : serverRefQuery.isError || !onlineRef ? (
+              <div role="alert" className="bg-[#14110c] border border-[#d4613a]/30 rounded-2xl py-14 text-center px-6">
+                <p className="font-serif text-[#faf7f0] text-lg">Sin conexión con el servidor</p>
+                <p className="text-[#b3a893] text-xs mt-1 font-mono">Las gift cards de referidos viven en el servidor.</p>
+                <button onClick={() => void serverRefQuery.refetch()}
+                  className="mt-4 px-4 py-2 bg-[#f2d29b] text-[#0d0b09] text-xs font-semibold rounded-lg hover:bg-[#f7ddab] transition-colors">
+                  Reintentar
+                </button>
+              </div>
+            ) : refItems.length === 0 ? (
+              <div className="bg-[#14110c] border border-[#403521] rounded-2xl py-14 text-center">
+                <Gift size={28} className="mx-auto text-[#403521] mb-3" />
+                <p className="font-serif text-[#b3a893] text-lg">Sin gift cards de referidos</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                {refItems.map(g => (
+                  <div key={g.code} className={`relative rounded-2xl border p-5 overflow-hidden transition-all group ${g.used ? 'bg-[#141110] border-[#403521] opacity-70' : 'bg-[#14110c] border-[#f2d29b]/30 hover:border-[#f2d29b]/55 hover:shadow-[0_8px_36px_rgba(242,210,155,0.12)]'}`}>
+                    <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: g.used ? '#403521' : 'linear-gradient(90deg,#a37c42,#f9e9c8,#a37c42)' }} />
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${g.used ? 'text-[#6b6355] border-[#403521]' : 'text-[#f9e9c8] border-[#f2d29b]/30 bg-[#f2d29b]/10'}`}>
+                        <Share2 size={16} />
+                      </div>
+                      <Can code="giftcards.update">
+                        <button onClick={() => toggleGcUsed(g.code)} title={g.used ? 'Reactivar' : 'Marcar canjeada'}
+                          className={`text-[11px] px-2.5 py-1 rounded-full border transition-all ${g.used ? 'bg-[#332a1d] text-[#b3a893] border-[#403521] hover:border-[#b3a893]' : 'bg-[#8aab8a]/10 text-[#8aab8a] border-[#8aab8a]/30 hover:bg-[#8aab8a]/20'}`}>
+                          {g.used ? 'Canjeada' : '● Activa'}
+                        </button>
+                      </Can>
+                    </div>
+                    <p className={`font-serif leading-none ${g.used ? 'text-[#b3a893]' : 'text-gradient'}`} style={{ fontSize: '2.1rem' }}>₡{g.amount.toLocaleString()}</p>
+                    <p className="text-[#b3a893] text-[11px] font-mono uppercase tracking-widest mt-1">Referido · Lealtad</p>
+                    <button onClick={() => copyGc(g.code)}
+                      className="mt-3 w-full flex items-center justify-between px-3 py-2 rounded-xl bg-[#0d0b09] border border-dashed border-[#403521] hover:border-[#f2d29b]/50 transition-colors group/code">
+                      <span className="font-mono text-[#f9e9c8] text-xs tracking-widest">{g.code}</span>
+                      <span className="text-[#b3a893] group-hover/code:text-[#f2d29b] transition-colors flex items-center gap-1 text-[11px]">
+                        {copiedCode === g.code ? <><Check size={11} /> ¡Copiado!</> : <><Copy size={11} /> Copiar</>}
+                      </span>
+                    </button>
+                    <div className="flex justify-between text-xs mt-3">
+                      <span className="text-[#b3a893]">De: <span className="text-[#faf7f0]">{g.buyer}</span></span>
+                      {g.recipient ? <span className="text-[#b3a893]">Para: <span className="text-[#f9e9c8]">{g.recipient}</span></span> : <span className="text-[#6b6355]">Lealtad</span>}
                     </div>
                     <div className="flex gap-2 mt-4">
                       <Can code="giftcards.update">

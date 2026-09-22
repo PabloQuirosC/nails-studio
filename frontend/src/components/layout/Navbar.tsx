@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router';
-import { Menu, X, Sparkles, ChevronRight } from 'lucide-react';
+import { Menu, X, ChevronRight } from 'lucide-react';
 
 const LINKS = [
   { to: '/catalogo', label: 'Catálogo' },
@@ -43,9 +43,11 @@ export function Navbar() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           {/* Logo */}
           <Link to="/" className="group flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full border border-[#f2d29b]/40 flex items-center justify-center group-hover:border-[#f2d29b] transition-colors">
-              <Sparkles size={12} className="text-[#f2d29b]" />
-            </div>
+            <img
+              src="/logo.jpg"
+              alt="Nails Studio"
+              className="w-7 h-7 rounded-full object-cover border border-[#f2d29b]/40 group-hover:border-[#f2d29b] transition-colors"
+            />
             <span className="font-serif text-[19px] tracking-wide">
               <span className="text-gradient-subtle">Nails</span>
               <span className="text-[#faf7f0]"> Studio</span>

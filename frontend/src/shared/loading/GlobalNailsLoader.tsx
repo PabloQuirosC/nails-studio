@@ -39,11 +39,15 @@ export function GlobalNailsLoader() {
     >
       <div className="flex flex-col items-center px-10 py-9 rounded-3xl border border-[#f2d29b]/20 animate-scale-in"
         style={{ background: 'linear-gradient(160deg, #1a140d 0%, #0f0c09 100%)', boxShadow: '0 0 80px rgba(242,210,155,0.12)' }}>
-        {/* ── Monograma en anillo ── */}
+        {/* ── Logo en anillo ── */}
         <div className="relative w-16 h-16" aria-hidden="true">
           <span className="absolute inset-0 rounded-full border border-[#f2d29b]/15" />
           <span className="loader-ring absolute inset-0 rounded-full" />
-          <span className="absolute inset-0 flex items-center justify-center font-serif text-[#f2d29b] text-2xl">N</span>
+          <img
+            src="/logo.jpg"
+            alt=""
+            className="absolute inset-1.5 w-[52px] h-[52px] rounded-full object-cover"
+          />
         </div>
 
         <p className="font-mono text-[#f2d29b] text-[10px] tracking-[0.35em] uppercase mt-6">Nails Studio</p>

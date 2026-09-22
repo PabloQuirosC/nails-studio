@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Eye, EyeOff, Mail, Lock, Sparkles, ArrowRight, ArrowLeft, Loader2, TriangleAlert } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, Loader2, TriangleAlert } from 'lucide-react';
 import { useAuthStore } from '../../shared/auth/auth-store';
 
 const DRIVE_COVER = 'https://drive.google.com/thumbnail?id=1Z0KrgimGcjZZICdSUlKEgSmdNU_R5utM&sz=w1000';
@@ -64,9 +64,11 @@ export function AdminLogin() {
         />
 
         <div className="relative z-10 p-10 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full border border-[#f2d29b]/50 flex items-center justify-center">
-            <Sparkles size={13} className="text-[#f2d29b]" />
-          </div>
+          <img
+            src="/logo.jpg"
+            alt="Nails Studio"
+            className="w-8 h-8 rounded-full object-cover border border-[#f2d29b]/50"
+          />
           <span className="font-serif text-xl tracking-wide">
             <span className="text-gradient-subtle">Nails</span>
             <span className="text-[#faf7f0]"> Studio</span>

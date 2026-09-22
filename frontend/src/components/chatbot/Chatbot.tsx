@@ -124,6 +124,8 @@ export function Chatbot() {
                         </div>
                       ))}
                     </div>
+                  ) : msg.from === 'user' ? (
+                    <span className="whitespace-pre-line break-words">{msg.text}</span>
                   ) : (
                     <span dangerouslySetInnerHTML={{ __html: msg.text.replace(/\n/g, '<br/>') }} />
                   )}

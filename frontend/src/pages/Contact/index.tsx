@@ -97,7 +97,7 @@ export function Contact() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-[#b3a893] text-xs font-mono uppercase tracking-widest mb-1">{s.label}</p>
-                    <a href={s.url} target="_blank" rel="noreferrer"
+                    <a href={s.url} target="_blank" rel="noopener noreferrer"
                       className="text-[#f2d29b] hover:underline text-sm break-all">{s.url}</a>
                   </div>
                 </div>

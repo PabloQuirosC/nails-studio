@@ -40,6 +40,7 @@ export interface GiftCard {
   buyer: string;
   recipient: string | null;
   used: boolean;
+  source: string;
 }
 
 interface Page<T> { items: T[]; total: number; }
@@ -220,13 +221,14 @@ export function useRevokePermission() {
 }
 
 // ─── Gift cards ───
-export function useServerGiftCards(filter: 'all' | 'active' | 'used', q: string) {
+export function useServerGiftCards(filter: 'all' | 'active' | 'used', q: string, source: '' | 'manual' | 'loyalty' = '') {
   const used = filter === 'all' ? '' : filter === 'active' ? '&used=false' : '&used=true';
+  const src = source ? `&source=${source}` : '';
   return useQuery({
-    queryKey: ['admin', 'giftcards', filter, q.trim().toLowerCase()],
+    queryKey: ['admin', 'giftcards', filter, q.trim().toLowerCase(), source],
     queryFn: () =>
       apiFetch<Page<GiftCard>>(
-        `/api/v1/giftcards?offset=0&limit=100&q=${encodeURIComponent(q.trim())}${used}`,
+        `/api/v1/giftcards?offset=0&limit=100&q=${encodeURIComponent(q.trim())}${used}${src}`,
         { message: 'Cargando gift cards…' },
       ),
     retry: 1,
