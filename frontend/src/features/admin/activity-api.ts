@@ -1,6 +1,6 @@
 /** Feed global de actividad reciente (auditorías de auth + gift cards). */
 import { useQuery } from '@tanstack/react-query';
-import { apiFetch } from '../../shared/auth/api-client';
+import { apiFetch, LIVE_REFRESH_MS } from '../../shared/auth/api-client';
 
 export interface ActivityItem {
   kind: 'login_ok' | 'login_fail' | 'giftcard';
@@ -15,8 +15,10 @@ export function useRecentActivity(limit = 12) {
     queryFn: () =>
       apiFetch<ActivityItem[]>(`/api/v1/actividad/reciente?limit=${limit}`, {
         message: 'Cargando actividad…',
+        background: true,
       }),
     retry: 1,
     staleTime: 30_000,
+    refetchInterval: LIVE_REFRESH_MS,
   });
 }

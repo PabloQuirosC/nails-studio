@@ -8,6 +8,9 @@ export function setToken(t: string | null): void { memoryToken = t; }
 export function getToken(): string | null { return memoryToken; }
 export function clearToken(): void { memoryToken = null; }
 
+/** Polling de listas admin: se refrescan solas sin recargar (20 s, pausado en pestaña oculta). */
+export const LIVE_REFRESH_MS = 20_000;
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -19,12 +22,15 @@ export class ApiError extends Error {
 interface ApiInit extends RequestInit {
   message?: string;
   block?: boolean;
+  /** background: polling silencioso, nunca muestra el spinner global. */
+  background?: boolean;
 }
 
 /** fetch contra /api/v1 con bloqueo visual opcional (usa el spinner de uñas). */
 export async function apiFetch<T>(path: string, init?: ApiInit): Promise<T> {
-  const { message = 'Puliendo tu experiencia…', block = true, ...rest } = init ?? {};
-  if (block) showLoading(message);
+  const { message = 'Puliendo tu experiencia…', block = true, background = false, ...rest } = init ?? {};
+  const silent = background || !block;
+  if (!silent) showLoading(message);
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (memoryToken) headers.Authorization = `Bearer ${memoryToken}`;
@@ -51,6 +57,6 @@ export async function apiFetch<T>(path: string, init?: ApiInit): Promise<T> {
     if (err instanceof ApiError) throw err;
     throw new ApiError(0, 'No se pudo conectar con el servidor');
   } finally {
-    if (block) hideLoading();
+    if (!silent) hideLoading();
   }
 }

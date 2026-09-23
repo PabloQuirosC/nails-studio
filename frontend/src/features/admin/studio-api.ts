@@ -5,7 +5,7 @@ Dashboard) y mutaciones con invalidación. Los queries llevan `message` para
 que el spinner de uñas bloquee mientras el endpoint no responde.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '../../shared/auth/api-client';
+import { apiFetch, LIVE_REFRESH_MS } from '../../shared/auth/api-client';
 import type { GiftCard } from './rbac-api';
 
 export interface Category {
@@ -74,9 +74,10 @@ const PAGE = 6;
 export function useServerCategories() {
   return useQuery({
     queryKey: ['studio', 'categories'],
-    queryFn: () => apiFetch<Category[]>('/api/v1/categories', { message: 'Cargando categorías…' }),
+    queryFn: () => apiFetch<Category[]>('/api/v1/categories', { message: 'Cargando categorías…', background: true }),
     retry: 1,
     staleTime: 60_000,
+    refetchInterval: LIVE_REFRESH_MS,
   });
 }
 
@@ -87,10 +88,11 @@ export function useServerDesigns(page: number, q: string, category: string, limi
     queryFn: () =>
       apiFetch<Page<Design>>(
         `/api/v1/designs?offset=${(page - 1) * limit}&limit=${limit}&q=${encodeURIComponent(q.trim())}${cat}`,
-        { message: 'Cargando diseños…' },
+        { message: 'Cargando diseños…', background: true },
       ),
     retry: 1,
     staleTime: 30_000,
+    refetchInterval: LIVE_REFRESH_MS,
   });
 }
 
@@ -179,10 +181,11 @@ export function useServerAppointments(day = '', status = '') {
     queryFn: () =>
       apiFetch<Page<Appointment>>(
         `/api/v1/appointments?offset=0&limit=100&day=${encodeURIComponent(day)}&status=${encodeURIComponent(status)}`,
-        { message: 'Cargando agenda…' },
+        { message: 'Cargando agenda…', background: true },
       ),
     retry: 1,
     staleTime: 15_000,
+    refetchInterval: LIVE_REFRESH_MS,
   });
 }
 
@@ -193,11 +196,12 @@ export function useClientAppointments(clientId: number | null) {
     queryFn: () =>
       apiFetch<Page<Appointment>>(
         `/api/v1/appointments?offset=0&limit=100&client_id=${clientId}`,
-        { message: 'Cargando historial…' },
+        { message: 'Cargando historial…', background: true },
       ),
     enabled: clientId !== null,
     retry: 1,
     staleTime: 15_000,
+    refetchInterval: LIVE_REFRESH_MS,
   });
 }
 
@@ -243,10 +247,11 @@ export function useServerClients(page: number, q: string, limit = PAGE) {
     queryFn: () =>
       apiFetch<Page<Client>>(
         `/api/v1/clients?offset=${(page - 1) * limit}&limit=${limit}&q=${encodeURIComponent(q.trim())}`,
-        { message: 'Cargando clientas…' },
+        { message: 'Cargando clientas…', background: true },
       ),
     retry: 1,
     staleTime: 30_000,
+    refetchInterval: LIVE_REFRESH_MS,
   });
 }
 
@@ -340,9 +345,11 @@ export function useAdminPosts(published: boolean | null, page = 1, limit = 6, ki
     queryFn: () =>
       apiFetch<Page<AdminPost>>(`/api/v1/posts/admin/todos?offset=${offset}&limit=${limit}&kind=${kind}${pub}`, {
         message: kind === 'articulo' ? 'Cargando blog…' : kind === 'nosotros' ? 'Cargando nosotros…' : 'Cargando reseñas…',
+        background: true,
       }),
     retry: 1,
     staleTime: 30_000,
+    refetchInterval: LIVE_REFRESH_MS,
   });
 }
 
@@ -445,9 +452,11 @@ export function useLoyaltyCards(enabled: boolean) {
     queryFn: () =>
       apiFetch<Page<GiftCard>>('/api/v1/giftcards?offset=0&limit=100&source=loyalty', {
         message: 'Cargando lealtad…',
+        background: true,
       }),
     enabled,
     retry: 1,
     staleTime: 30_000,
+    refetchInterval: LIVE_REFRESH_MS,
   });
 }

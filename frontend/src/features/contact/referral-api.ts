@@ -1,6 +1,6 @@
 /** Referidos: contenido público del programa + edición admin. */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '../../shared/auth/api-client';
+import { apiFetch, LIVE_REFRESH_MS } from '../../shared/auth/api-client';
 
 export interface ReferralInfo {
   title: string;
@@ -24,9 +24,10 @@ export const REFERRAL_DEFAULTS: ReferralInfo = {
 export function useReferralInfo() {
   return useQuery({
     queryKey: ['public', 'referral-info'],
-    queryFn: () => apiFetch<ReferralInfo>('/api/v1/referrals/info', { message: 'Cargando programa…', block: false }),
+    queryFn: () => apiFetch<ReferralInfo>('/api/v1/referrals/info', { message: 'Cargando programa…', block: false, background: true }),
     retry: 1,
     staleTime: 120_000,
+    refetchInterval: LIVE_REFRESH_MS,
   });
 }
 

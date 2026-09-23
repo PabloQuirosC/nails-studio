@@ -1,6 +1,6 @@
 /** Contacto: info pública + envío real, y buzón admin (leer/eliminar + datos). */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '../../shared/auth/api-client';
+import { apiFetch, LIVE_REFRESH_MS } from '../../shared/auth/api-client';
 
 export interface ContactInfo {
   address: string;
@@ -63,10 +63,11 @@ export function useAdminMessages(unreadOnly = false, page = 1, limit = 10) {
     queryFn: () =>
       apiFetch<Page<ContactMessage>>(
         `/api/v1/contact/messages?offset=${offset}&limit=${limit}${unreadOnly ? '&unread_only=true' : ''}`,
-        { message: 'Cargando mensajes…' },
+        { message: 'Cargando mensajes…', background: true },
       ),
     retry: 1,
     staleTime: 30_000,
+    refetchInterval: LIVE_REFRESH_MS,
   });
 }
 

@@ -5,7 +5,7 @@ sesión de staff), los hooks devuelven `undefined` y el Dashboard usa sus mocks
 locales. Mutaciones con invalidación de `['admin', ...]`.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '../../shared/auth/api-client';
+import { apiFetch, LIVE_REFRESH_MS } from '../../shared/auth/api-client';
 
 export interface BackendUser {
   id: number;
@@ -60,10 +60,11 @@ export function useServerUsers(page: number, q: string, role = '') {
     queryFn: () =>
       apiFetch<Page<BackendUser>>(
         `/api/v1/usuarios?offset=${(page - 1) * PAGE_SIZE}&limit=${PAGE_SIZE}&q=${encodeURIComponent(q.trim())}${rq}`,
-        { message: 'Cargando usuarios…' },
+        { message: 'Cargando usuarios…', background: true },
       ),
     retry: 1,
     staleTime: 30_000,
+    refetchInterval: LIVE_REFRESH_MS,
   });
 }
 
@@ -102,18 +103,20 @@ export function useToggleUserStatus() {
 export function useServerRoles() {
   return useQuery({
     queryKey: ['admin', 'roles'],
-    queryFn: () => apiFetch<BackendRole[]>('/api/v1/roles', { message: 'Cargando roles…' }),
+    queryFn: () => apiFetch<BackendRole[]>('/api/v1/roles', { message: 'Cargando roles…', background: true }),
     retry: 1,
     staleTime: 60_000,
+    refetchInterval: LIVE_REFRESH_MS,
   });
 }
 
 export function useServerPermissions() {
   return useQuery({
     queryKey: ['admin', 'permissions'],
-    queryFn: () => apiFetch<BackendPermission[]>('/api/v1/permisos', { message: 'Cargando permisos…' }),
+    queryFn: () => apiFetch<BackendPermission[]>('/api/v1/permisos', { message: 'Cargando permisos…', background: true }),
     retry: 1,
     staleTime: 60_000,
+    refetchInterval: LIVE_REFRESH_MS,
   });
 }
 
@@ -229,10 +232,11 @@ export function useServerGiftCards(filter: 'all' | 'active' | 'used', q: string,
     queryFn: () =>
       apiFetch<Page<GiftCard>>(
         `/api/v1/giftcards?offset=0&limit=100&q=${encodeURIComponent(q.trim())}${used}${src}`,
-        { message: 'Cargando gift cards…' },
+        { message: 'Cargando gift cards…', background: true },
       ),
     retry: 1,
     staleTime: 30_000,
+    refetchInterval: LIVE_REFRESH_MS,
   });
 }
 
