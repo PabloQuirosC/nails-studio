@@ -73,9 +73,13 @@ export async function apiFetch<T>(path: string, init?: ApiInit): Promise<T> {
     if (res.status === 401) {
       const data = await res.json().catch(() => null);
       const detail = String((data as { detail?: unknown } | null)?.detail ?? '');
-      const tampered = TAMPER_HINTS.some((h) => detail.toLowerCase().includes(h));
+      const lowered = detail.toLowerCase();
+      // Anónimo sin sesión ("No autenticado"): caso normal en /admin sin login.
+      // Nunca es kill global, solo limpia el token en memoria.
+      const isAnonymous = lowered.includes('no autenticado') || lowered.includes('sin refresh token');
+      const tampered = !isAnonymous && TAMPER_HINTS.some((h) => lowered.includes(h));
       // 401 siempre mata token en memoria; si huele a tamper/expiración, kill total front.
-      if (tampered || detail === '') {
+      if (tampered || (!isAnonymous && detail === '')) {
         emitForceLogout(detail || 'unauthorized');
       } else {
         clearToken();
