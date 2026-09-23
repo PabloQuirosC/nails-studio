@@ -92,6 +92,12 @@ async def _400(_req, exc: ForbiddenOp):
     return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
+@app.get("/")
+def root():
+    """Info pública de la API (paridad con Dulce: evita el 404 confuso al abrir el dominio)."""
+    return {"message": "Nails Studio API", "version": "1.0.0"}
+
+
 @app.get("/healthz")
 def healthz():
     return {"ok": True, "app": settings.app_name}
