@@ -95,8 +95,8 @@ if (typeof window !== 'undefined') {
     const reason = (e as CustomEvent<{ reason?: string }>)?.detail?.reason;
     try {
       useAuthStore.getState().forceLogout(reason);
-      // Redirección dura fuera de React para no dejar Dashboard montado.
-      if (!window.location.pathname.startsWith('/admin') || window.location.pathname === '/admin/dashboard') {
+      // Solo redirige si quedó montado el panel: nunca saca al visitante público.
+      if (window.location.pathname.startsWith('/admin/dashboard')) {
         window.location.replace('/admin');
       }
     } catch { /* store no listo */ }

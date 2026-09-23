@@ -15,15 +15,16 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   }, [hydrated, hydrate]);
 
   useEffect(() => {
-    if (!hydrated || !verified) return;
-    if (!user || !hasAnyPermission(user)) navigate('/admin', { replace: true });
+    if (!hydrated) return;
+    // hydrated=true = el servidor ya respondió: sin sesión verificada no hay panel.
+    if (!verified || !user || !hasAnyPermission(user)) navigate('/admin', { replace: true });
   }, [hydrated, verified, user, navigate]);
 
-  if (!hydrated || !verified) {
+  if (!hydrated) {
     // Sin texto: fondo neutro mientras el SERVIDOR confirma la sesión.
     return <div className="min-h-screen bg-[#060505]" aria-hidden="true" />;
   }
-  if (!user || !hasAnyPermission(user)) return null;
+  if (!verified || !user || !hasAnyPermission(user)) return null;
   return <>{children}</>;
 }
 
