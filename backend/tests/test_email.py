@@ -159,3 +159,41 @@ def test_ics_invite_formato_valido():
     assert "DTEND:20260923T110000Z" in ics
     assert "UID:cita-7@nailsstudio" in ics
     assert "\n" not in ics.replace("\r\n", "")
+
+
+def test_notify_user_created_usa_url_canonica(monkeypatch):
+    """El link Acceso es solo PUBLIC_FRONTEND_URL/admin (nunca la lista CORS)."""
+    from app.core import email as mail
+
+    monkeypatch.setattr(mail.settings, "public_frontend_url", "https://nails-studio-gray.vercel.app")
+    monkeypatch.setattr(mail.settings, "frontend_origin",
+                        "http://localhost:5173,http://127.0.0.1:5173,https://dulce-encantocr.vercel.app")
+
+    calls = []
+    monkeypatch.setattr(mail, "send_email",
+                        lambda **kw: calls.append(kw) or True)
+    ok = mail.notify_user_created(username="pablo.qcortes", email="nuevo@x.com",
+                                  full_name="Pablo", admin_emails=None)
+    assert ok is True
+    html = calls[0]["html"]
+    assert "https://nails-studio-gray.vercel.app/admin" in html
+    assert "localhost" not in html
+    assert "dulce-encantocr" not in html
+
+
+def test_public_app_url_fallback_primer_origen(monkeypatch):
+    """Sin canónica: primer http(s) de frontend_origin (no la lista pegada)."""
+    from app.core import email as mail
+
+    monkeypatch.setattr(mail.settings, "public_frontend_url", "")
+    monkeypatch.setattr(mail.settings, "frontend_origin",
+                        "http://localhost:5173,http://127.0.0.1:5173")
+    assert mail.settings.public_app_url == "http://localhost:5173"
+
+    calls = []
+    monkeypatch.setattr(mail, "send_email",
+                        lambda **kw: calls.append(kw) or True)
+    assert mail.notify_user_created(username="u", email="u@x.com",
+                                    full_name="U", admin_emails=None) is True
+    assert "http://localhost:5173/admin" in calls[0]["html"]
+    assert "http://127.0.0.1:5173" not in calls[0]["html"]

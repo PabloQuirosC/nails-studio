@@ -5,6 +5,7 @@ import { DESIGNS, TESTIMONIALS, OCCASIONS } from '../../data';
 import { usePublicPosts, useSubmitTestimonio } from '../../features/catalog/public-api';
 import { useContactInfo } from '../../features/contact/contact-api';
 import { isOpenLegacy, isOpenNow } from '../../features/contact/open-hours';
+import { resolveImageUrl } from '../../shared/images';
 import { Modal, Toast } from '../../components/ui/Modal';
 
 /** Badge coherente con el horario editable (Admin → Contacto). */
@@ -403,7 +404,7 @@ export function Home() {
             {/* Map card */}
             <div className="relative rounded-2xl overflow-hidden aspect-[4/3] border border-[#3a2f1e]">
               <img
-                src="https://images.unsplash.com/photo-1560066984-138dadb4c035?w=900&h=600&fit=crop&auto=format"
+                src={resolveImageUrl('https://drive.google.com/file/d/1Z0KrgimGcjZZICdSUlKEgSmdNU_R5utM/view?usp=sharing') ?? ''}
                 alt="Nuestro estudio"
                 className="w-full h-full object-cover opacity-60"
               />

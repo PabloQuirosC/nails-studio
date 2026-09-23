@@ -36,7 +36,7 @@ export function usePublicCategories() {
   });
 }
 
-export function usePublicDesigns(q = '', category = '', occasion = '') {
+export function usePublicDesigns(q = '', category = '', occasion = '', enabled = true) {
   const cat = category ? `&category=${encodeURIComponent(category)}` : '';
   const occ = occasion ? `&occasion=${encodeURIComponent(occasion)}` : '';
   return useQuery({
@@ -46,6 +46,7 @@ export function usePublicDesigns(q = '', category = '', occasion = '') {
         `/api/v1/designs?offset=0&limit=100&q=${encodeURIComponent(q.trim())}${cat}${occ}`,
         { message: 'Cargando diseños…' },
       ),
+    enabled,
     retry: 1,
     staleTime: 60_000,
   });

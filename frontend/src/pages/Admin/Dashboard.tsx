@@ -2887,12 +2887,10 @@ export function AdminDashboard() {
                               <button title="Editar" onClick={() => openEditUser(u)}
                                 className="w-8 h-8 flex items-center justify-center rounded-lg text-[#b3a893] hover:text-[#f2d29b] hover:bg-[#f2d29b]/10 border border-transparent hover:border-[#f2d29b]/30 transition-all"><Edit3 size={14} /></button>
                             </Can>
-                            {u.role !== 'admin' && (
-                              <Can code="usuarios.delete">
-                                <button title="Eliminar" onClick={() => { setDeleteUserError(''); setDeleteUserModal({ open: true, id: u.id }); }}
-                                  className="w-8 h-8 flex items-center justify-center rounded-lg text-[#b3a893] hover:text-[#e08a6d] hover:bg-[#d4613a]/10 border border-transparent hover:border-[#d4613a]/30 transition-all"><Trash2 size={14} /></button>
-                              </Can>
-                            )}
+                            <Can code="usuarios.delete">
+                              <button title="Eliminar" onClick={() => { setDeleteUserError(''); setDeleteUserModal({ open: true, id: u.id }); }}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg text-[#b3a893] hover:text-[#e08a6d] hover:bg-[#d4613a]/10 border border-transparent hover:border-[#d4613a]/30 transition-all"><Trash2 size={14} /></button>
+                            </Can>
                           </div>
                         </td>
                       </tr>
