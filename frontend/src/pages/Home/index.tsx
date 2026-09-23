@@ -74,8 +74,8 @@ export function Home() {
   const open = useIsOpen();
   const trending = DESIGNS.slice(0, 8);
   const testiQuery = usePublicPosts('testimonio');
-  const testiItems = testiQuery.data !== undefined
-    ? (testiQuery.data.items ?? []).map(p => ({
+  const testiItems = testiQuery.data != null
+    ? (testiQuery.data?.items ?? []).map(p => ({
         id: `srv-${p.id}` as string | number,
         name: p.author ?? p.title,
         text: p.excerpt ?? '',

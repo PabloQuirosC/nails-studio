@@ -985,7 +985,7 @@ export function AdminDashboard() {
     lastLogin: formatLastLogin(u.last_login),
   });
   // Solo servidor: sin conexión no hay filas inventadas (aviso + Reintentar en la UI).
-  const effectiveUsers: AppUser[] = serverUsersQuery.data?.items.map(mapBackendUser) ?? [];
+  const effectiveUsers: AppUser[] = (serverUsersQuery.data?.items ?? []).map(mapBackendUser);
   const userTotalPages = Math.max(1, Math.ceil(serverUserTotal / 6));
   const userRows = effectiveUsers;
   const goUserPage = (p: number) => setUserPage(Math.max(1, Math.min(userTotalPages, p)));
