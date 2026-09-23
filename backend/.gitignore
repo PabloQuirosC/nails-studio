@@ -1,0 +1,6 @@
+# Backend Nails Studio — ignora secretos locales
+.env
+logs/
+__pycache__/
+*.py[cod]
+.test

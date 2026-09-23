@@ -1,0 +1,23 @@
+# ── Secrets: nunca commitear .env con valores reales ──
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+opencode/
+
+# Tooling local de IA (no necesario en git ni en Vercel)
+.opencode/
+opencode.json
