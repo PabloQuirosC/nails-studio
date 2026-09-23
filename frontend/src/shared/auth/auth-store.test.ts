@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasPermission } from './auth-store';
+import { hasAnyPermission, hasPermission } from './auth-store';
 import type { Me } from './auth-api';
 
 function me(roles: string[] = [], permissions: string[] = []): Me {
@@ -18,9 +18,19 @@ describe('hasPermission', () => {
     expect(hasPermission(null, 'blog.read')).toBe(false);
   });
 
-  it('ADMIN tiene bypass total', () => {
-    expect(hasPermission(me(['admin'], []), 'cualquier.cosa')).toBe(true);
-    expect(hasPermission(me(['ADMIN'], []), 'contacto.delete')).toBe(true);
+  it('ADMIN sin permiso explícito NO escala (solo permisos autorizan)', () => {
+    expect(hasPermission(me(['ADMIN'], ['blog.read']), 'cualquier.cosa')).toBe(false);
+    expect(hasPermission(me(['ADMIN'], ['blog.read']), 'blog.read')).toBe(true);
+    expect(hasPermission(me(['admin'], ['x.y']), 'contacto.delete')).toBe(false);
+    expect(hasPermission(me(['ADMIN'], []), 'contacto.delete')).toBe(false);
+    expect(hasPermission(me(['admin'], []), 'cualquier.cosa')).toBe(false);
+  });
+
+  it('hasAnyPermission exige al menos 1 permiso', () => {
+    expect(hasAnyPermission(null)).toBe(false);
+    expect(hasAnyPermission(me(['staff'], []))).toBe(false);
+    expect(hasAnyPermission(me([], []))).toBe(false);
+    expect(hasAnyPermission(me(['staff'], ['blog.read']))).toBe(true);
   });
 
   it('compara permisos case-insensitive', () => {

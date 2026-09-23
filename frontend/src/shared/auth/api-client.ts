@@ -1,4 +1,9 @@
-/** Cliente API: token solo en memoria (nunca localStorage) + cookie httpOnly (credentials:include). */
+/** Cliente API: token solo en memoria + cookie httpOnly.
+ *
+ * Política dura: CERO storage para sesión (ni localStorage ni sessionStorage).
+ * En Application no debe aparecer ninguna clave ns_*. Si se detecta
+ * manipulación (401) se purga memoria y se emite `ns:force-logout`.
+ */
 import { hideLoading, showLoading } from '../loading/loading-store';
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined ?? 'http://127.0.0.1:8000').replace(/\/$/, '');
@@ -7,6 +12,29 @@ let memoryToken: string | null = null;
 export function setToken(t: string | null): void { memoryToken = t; }
 export function getToken(): string | null { return memoryToken; }
 export function clearToken(): void { memoryToken = null; }
+
+export const FORCE_LOGOUT_EVENT = 'ns:force-logout';
+const LEGACY_KEYS = ['ns_session_user', 'ns_session', 'ns_token', 'nails_session'];
+
+/** Limpieza legacy una sola vez: borra huellas viejas, nunca escribe. */
+export function purgeClientSession(): void {
+  memoryToken = null;
+  try {
+    for (const k of LEGACY_KEYS) sessionStorage.removeItem(k);
+  } catch { /* almacenamiento bloqueado */ }
+  try {
+    for (const k of LEGACY_KEYS) localStorage.removeItem(k);
+  } catch { /* almacenamiento bloqueado */ }
+}
+
+function emitForceLogout(reason: string): void {
+  purgeClientSession();
+  try {
+    window.dispatchEvent(new CustomEvent(FORCE_LOGOUT_EVENT, { detail: { reason } }));
+  } catch { /* SSR / sin window */ }
+}
+
+const TAMPER_HINTS = ['manipulaci', 'manipulado', 'firma inv', 'invalidada', 'expirado', 'expired'];
 
 /** Polling de listas admin: se refrescan solas sin recargar (20 s, pausado en pestaña oculta). */
 export const LIVE_REFRESH_MS = 20_000;
@@ -42,7 +70,19 @@ export async function apiFetch<T>(path: string, init?: ApiInit): Promise<T> {
       credentials: 'include',
       signal: AbortSignal.timeout(25000),
     });
-    if (res.status === 401) clearToken();
+    if (res.status === 401) {
+      const data = await res.json().catch(() => null);
+      const detail = String((data as { detail?: unknown } | null)?.detail ?? '');
+      const tampered = TAMPER_HINTS.some((h) => detail.toLowerCase().includes(h));
+      // 401 siempre mata token en memoria; si huele a tamper/expiración, kill total front.
+      if (tampered || detail === '') {
+        emitForceLogout(detail || 'unauthorized');
+      } else {
+        clearToken();
+      }
+      const msg = detail ? detail : `Error ${res.status}`;
+      throw new ApiError(res.status, msg);
+    }
     if (res.status === 204) return null as T;
     const data = await res.json().catch(() => null);
     if (!res.ok) {

@@ -100,6 +100,21 @@ const TABS = [
   { id: 'contacto',  label: 'Contacto',  icon: Mail      },
 ];
 
+/** Módulo backend que da acceso a cada tab. Overview lo ve cualquiera con sesión válida. */
+const TAB_MODULE: Record<string, string[]> = {
+  overview: [],
+  catalog: ['catalogo.'],
+  agenda: ['reservas.'],
+  clients: ['clientas.'],
+  users: ['usuarios.', 'roles.', 'permisos.'],
+  giftcards: ['giftcards.'],
+  referidos: ['referidos.'],
+  reviews: ['blog.'],
+  blog: ['blog.'],
+  nosotros: ['blog.'],
+  contacto: ['contacto.'],
+};
+
 // ─── Mock data ────────────────────────────────────────────────────────────────
 const MOCK_APPOINTMENTS = [
   { id: 1, client: 'Ana López',    service: 'Botanical Garden',      time: '10:00', color: '#f2d29b' },
@@ -240,9 +255,30 @@ export function AdminDashboard() {
 
   // Usuario real de la sesión para el sidebar (nada hardcodeado).
   const sessionUser = useAuthStore(s => s.user);
+  const verified = useAuthStore(s => s.verified);
   const sessionName = sessionUser?.full_name?.trim() || sessionUser?.username || 'Staff';
   const sessionRole = sessionUser?.roles?.[0] ?? '';
   const sessionInitial = (sessionName.trim()[0] ?? '?').toUpperCase();
+
+  // Tabs visibles según permisos VERIFICADOS por servidor. Caché no autoriza.
+  const canSeeTab = (id: string): boolean => {
+    if (!verified) return id === 'overview';
+    if (id === 'overview') return true;
+    const prefixes = TAB_MODULE[id] ?? [];
+    if (prefixes.length === 0) return true;
+    const perms = sessionUser?.permissions ?? [];
+    return perms.some((p) => prefixes.some((pre) => p.toLowerCase().startsWith(pre)));
+  };
+  const visibleTabs = TABS.filter((t) => canSeeTab(t.id));
+
+  useEffect(() => {
+    // Si el tab actual no está permitido (ej. ?tab=users sin permiso), vuelve a overview.
+    if (!canSeeTab(tab)) {
+      setTabState('overview');
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionUser?.permissions?.join(','), verified, tab]);
 
   const handleLogout = () => {
     void useAuthStore.getState().logout().then(() => navigate('/admin', { replace: true }));
@@ -1848,7 +1884,7 @@ export function AdminDashboard() {
             <div key={group.section}>
               <p className="px-3 mb-2 font-mono text-[9px] tracking-[0.28em] uppercase text-[#6b6355]">{group.section}</p>
               <div className="space-y-1">
-                {group.ids.map(id => {
+                {group.ids.filter(canSeeTab).map(id => {
                   const t = TABS.find(x => x.id === id)!;
                   const active = tab === t.id;
                   return (
@@ -1898,7 +1934,7 @@ export function AdminDashboard() {
       {/* ── Mobile tab bar premium ── */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-[#3a2f1e] flex overflow-x-auto px-2 py-1.5"
         style={{ background: 'rgba(13,11,10,0.92)', backdropFilter: 'blur(16px)' }}>
-        {TABS.map(t => {
+        {visibleTabs.map(t => {
           const active = tab === t.id;
           return (
             <button key={t.id} onClick={() => goTab(t.id)}
