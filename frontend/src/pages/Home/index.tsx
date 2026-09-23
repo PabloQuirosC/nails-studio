@@ -158,10 +158,6 @@ export function Home() {
             </p>
             <div className="flex items-center gap-4 flex-wrap">
               <div className="hidden sm:flex -space-x-3" aria-hidden="true">
-                {CATEGORY_IMAGES.slice(0, 3).map((src, j) => (
-                  <img key={j} src={src} alt="" loading="lazy"
-                    className="w-12 h-12 rounded-full object-cover border-2 border-[#060505] ring-1 ring-[#f2d29b]/30" />
-                ))}
               </div>
               <Link to="/reservas" className="btn-primary glow-gold-hover">
                 Reservar mi cita <ArrowRight size={16} />
