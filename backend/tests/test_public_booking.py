@@ -77,3 +77,12 @@ def test_invalid_range_blocked(db):
         agenda_service.create_public_booking(
             db, name="C", phone="+52 55 0005", email=None,
             design_id=None, starts_at=end, ends_at=start, notes=None)
+
+
+def test_past_booking_blocked(db):
+    past_start = datetime.now(timezone.utc) - timedelta(hours=2)
+    past_end = past_start + timedelta(minutes=60)
+    with pytest.raises(ValueError):
+        agenda_service.create_public_booking(
+            db, name="D", phone="+52 55 0006", email=None,
+            design_id=None, starts_at=past_start, ends_at=past_end, notes=None)

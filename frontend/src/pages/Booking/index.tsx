@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 import { Check, ChevronRight, Calendar, Clock, User, MessageSquare } from 'lucide-react';
 import { DESIGNS, CATEGORIES, TIME_SLOTS } from '../../data';
 import { CategoryIcon } from '../../shared/category-icons';
+import { resolveImageUrl } from '../../shared/images';
 import { usePublicCategories, usePublicDesigns } from '../../features/catalog/public-api';
 import { useCreatePublicBooking } from '../../features/agenda/public-api';
 import { Modal } from '../../components/ui/Modal';
@@ -31,7 +32,7 @@ export function Booking() {
         category: slugById.get(d.category_id) ?? '',
         price: d.price,
         duration: d.duration_min,
-        image: d.image_url ?? '',
+        image: resolveImageUrl(d.image_url) ?? '',
         description: d.description ?? '',
         technique: d.technique ?? '',
         tags: d.tags ?? [],
@@ -66,6 +67,14 @@ export function Booking() {
   const today = new Date();
   const [calMonth, setCalMonth] = useState(today.getMonth());
   const [calYear, setCalYear] = useState(today.getFullYear());
+  // Horas ya pasadas (solo aplican si el día elegido es hoy).
+  const isTodaySel = selected.date?.toDateString() === today.toDateString();
+  const nowMin = today.getHours() * 60 + today.getMinutes();
+  const slotPast = (t: string) => {
+    if (!isTodaySel) return false;
+    const [hh, mm] = t.split(':').map(Number);
+    return hh * 60 + mm <= nowMin;
+  };
 
   const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -219,7 +228,12 @@ export function Booking() {
                     const isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
                     const isToday = date.toDateString() === today.toDateString();
                     return (
-                      <button key={day} disabled={isPast} onClick={() => setSelected(s => ({ ...s, date }))}
+                      <button key={day} disabled={isPast} onClick={() => setSelected(s => {
+                        const sameDay = date.toDateString() === today.toDateString();
+                        const [hh, mm] = s.time ? s.time.split(':').map(Number) : [0, 0];
+                        const timeGone = !!s.time && sameDay && (hh * 60 + mm) <= nowMin;
+                        return { ...s, date, time: timeGone ? '' : s.time };
+                      })}
                         className={`h-8 rounded-lg flex items-center justify-center text-[11px] transition-all relative
                         ${isSelected ? 'bg-[#f2d29b] text-[#0d0b09] font-bold shadow-[0_2px_12px_rgba(242,210,155,0.35)]'
                           : isPast ? 'text-[#403521] cursor-not-allowed'
@@ -236,12 +250,16 @@ export function Booking() {
                 <div>
                   <p className="text-[#b3a893] text-xs font-mono mb-3">Horarios disponibles</p>
                   <div className="grid grid-cols-4 gap-2">
-                    {TIME_SLOTS.map(t => (
-                      <button key={t} onClick={() => setSelected(s => ({ ...s, time: t }))}
-                        className={`py-2 text-xs rounded border transition-colors ${selected.time === t ? 'border-[#f2d29b] text-[#f2d29b] bg-[#f2d29b]/10' : 'border-[#403521] text-[#b3a893] hover:border-[#b3a893]'}`}>
-                        {t}
-                      </button>
-                    ))}
+                    {TIME_SLOTS.map(t => {
+                      const past = slotPast(t);
+                      const active = selected.time === t;
+                      return (
+                        <button key={t} disabled={past} onClick={() => setSelected(s => ({ ...s, time: t }))}
+                          className={`py-2 text-xs rounded border transition-colors ${active ? 'border-[#f2d29b] text-[#f2d29b] bg-[#f2d29b]/10' : past ? 'border-[#403521] text-[#403521] cursor-not-allowed' : 'border-[#403521] text-[#b3a893] hover:border-[#b3a893]'}`}>
+                          {t}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}

@@ -21,6 +21,13 @@ def _get_or_404(db: Session, model, obj_id: int, label: str):
     return obj
 
 
+def _assert_not_past(starts_at: datetime) -> None:
+    """La web envía ISO local sin offset: se compara en hora local del servidor."""
+    now = datetime.now(timezone.utc) if starts_at.tzinfo is not None else datetime.now()
+    if starts_at <= now:
+        raise ValueError("No se pueden agendar citas en fechas u horas pasadas")
+
+
 def _assert_no_overlap(db: Session, starts_at: datetime, ends_at: datetime, exclude_id: int | None = None) -> None:
     if ends_at <= starts_at:
         raise Conflict("La hora de fin debe ser posterior al inicio")
@@ -42,6 +49,7 @@ def create_appointment(db: Session, **fields) -> Appointment:
     if fields.get("design_id") is not None:
         from app.infrastructure.models.catalog import Design
         _get_or_404(db, Design, fields["design_id"], "Diseño")
+    _assert_not_past(fields["starts_at"])
     _assert_no_overlap(db, fields["starts_at"], fields["ends_at"])
     appt = Appointment(status="pending", **fields)
     db.add(appt)
@@ -70,6 +78,7 @@ def create_public_booking(db: Session, *, name: str, phone: str, email: str | No
     if design_id is not None:
         from app.infrastructure.models.catalog import Design
         _get_or_404(db, Design, design_id, "Diseño")
+    _assert_not_past(starts_at)
     _assert_no_overlap(db, starts_at, ends_at)
     appt = Appointment(client_id=client.id, design_id=design_id, starts_at=starts_at,
                        ends_at=ends_at, notes=(notes or "").strip() or None, status="pending")
