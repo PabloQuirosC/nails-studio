@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router';
 import { ArrowLeft, Clock, Layers } from 'lucide-react';
 import { DESIGNS, CATEGORIES } from '../../data';
+import { resolveImageUrl } from '../../shared/images';
 import { usePublicCategories, usePublicDesign } from '../../features/catalog/public-api';
 
 export function DesignDetail() {
@@ -18,7 +19,7 @@ export function DesignDetail() {
         category: (catsQuery.data ?? []).find(c => c.id === live.data!.category_id)?.slug ?? '',
         price: live.data.price,
         duration: live.data.duration_min,
-        image: live.data.image_url ?? '',
+        image: resolveImageUrl(live.data.image_url) ?? '',
         description: live.data.description ?? '',
         complexity: live.data.complexity ?? '',
         occasion: live.data.occasion ?? '',

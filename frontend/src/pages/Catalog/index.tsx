@@ -4,6 +4,7 @@ import { Search, X, SlidersHorizontal, Clock, GitCompare, Check, Plus } from 'lu
 import { DESIGNS, CATEGORIES, OCCASIONS, COMPLEXITIES } from '../../data';
 import { Modal, Toast } from '../../components/ui/Modal';
 import { CategoryIcon } from '../../shared/category-icons';
+import { resolveImageUrl } from '../../shared/images';
 import { usePublicCategories, usePublicDesigns } from '../../features/catalog/public-api';
 
 export function Catalog() {
@@ -44,7 +45,7 @@ export function Catalog() {
         category: slugById.get(d.category_id) ?? '',
         price: d.price,
         duration: d.duration_min,
-        image: d.image_url ?? '',
+        image: resolveImageUrl(d.image_url) ?? '',
         description: d.description ?? '',
         technique: d.technique ?? '',
         tags: d.tags ?? [],

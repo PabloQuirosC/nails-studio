@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Clapperboard, Pause, Play, X } from 'lucide-react';
 import { DESIGNS, CATEGORIES } from '../../data';
+import { resolveImageUrl } from '../../shared/images';
 import { usePublicCategories, usePublicDesigns } from '../../features/catalog/public-api';
 
 type GalleryItem = { id: number; name: string; category: string; price: number; image: string; technique: string };
@@ -51,7 +52,7 @@ export function Gallery() {
   const filtered: GalleryItem[] = online
     ? (designsQuery.data?.items ?? []).map(d => ({
         id: d.id, name: d.name, category: slugById.get(d.category_id) ?? '',
-        price: d.price, image: d.image_url ?? '', technique: d.technique ?? '',
+        price: d.price, image: resolveImageUrl(d.image_url) ?? '', technique: d.technique ?? '',
       }))
     : (filter ? DESIGNS.filter(d => d.category === filter) : DESIGNS);
 
