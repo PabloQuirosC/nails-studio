@@ -1,0 +1,17 @@
+# No se sube a Vercel: peso muerto, secretos y cosas que corren en local.
+# CRÍTICO: .env lleva secretos reales (solo en tu PC y en las
+# Environment Variables de Vercel, nunca en el deploy).
+venv/
+.venv/
+app/venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.env
+.env.local
+logs/
+*.log
+alembic/
+tests/
