@@ -16,3 +16,8 @@ venv/
 .DS_Store
 .vscode/
 .idea/
+opencode/
+
+# Tooling local de IA (no necesario en git ni en Vercel)
+.opencode/
+opencode.json
