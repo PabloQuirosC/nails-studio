@@ -109,10 +109,10 @@ const MOCK_APPOINTMENTS = [
 ];
 
 const MOCK_CLIENTS = [
-  { id: 1, name: 'Valentina Ríos',  phone: '+52 55 1234', visits: 12, points: 240, lastVisit: '10 Sep 2026', lastDesign: 'Botanical Garden' },
-  { id: 2, name: 'Camila Serrano',  phone: '+52 55 5678', visits: 8,  points: 160, lastVisit: '5 Sep 2026',  lastDesign: 'Encapsulado Flores' },
-  { id: 3, name: 'María José López',phone: '+52 55 9012', visits: 5,  points: 100, lastVisit: '1 Sep 2026',  lastDesign: 'Marble Luxe' },
-  { id: 4, name: 'Andrea Fuentes', phone: '+52 55 3456', visits: 3,  points: 60,  lastVisit: '28 Ago 2026', lastDesign: 'French Clásico' },
+  { id: 1, name: 'Valentina Ríos',  phone: '+52 55 1234', visits: 12, points: 240, lastVisit: '10 Sep 2026' },
+  { id: 2, name: 'Camila Serrano',  phone: '+52 55 5678', visits: 8,  points: 160, lastVisit: '5 Sep 2026'  },
+  { id: 3, name: 'María José López',phone: '+52 55 9012', visits: 5,  points: 100, lastVisit: '1 Sep 2026'  },
+  { id: 4, name: 'Andrea Fuentes', phone: '+52 55 3456', visits: 3,  points: 60,  lastVisit: '28 Ago 2026' },
 ];
 
 const MOCK_GIFTCARDS = [
@@ -1238,7 +1238,7 @@ export function AdminDashboard() {
     category: catSlugById.get(d.category_id) ?? 'mano-alzada',
     price: d.price,
     duration: d.duration_min,
-    image: d.image_url ?? '',
+    image: resolveImageUrl(d.image_url) ?? '',
     description: d.description ?? '',
     technique: d.technique ?? '',
     tags: d.tags ?? [],
@@ -1493,7 +1493,7 @@ export function AdminDashboard() {
   const effClientsBase = onlineClients
     ? (clientsAllQuery.data?.items.map(c => ({
         id: c.id, name: c.name, phone: c.phone, visits: c.visits, points: c.points,
-        lastVisit: c.last_visit ? c.last_visit.slice(0, 10) : '—', lastDesign: '—',
+        lastVisit: c.last_visit ? c.last_visit.slice(0, 10) : '—',
       })) ?? [])
     : localClients;
 
@@ -1515,7 +1515,7 @@ export function AdminDashboard() {
             if (isOffline(err)) {
               setLocalClients(cs => [...cs, {
                 id: Date.now(), name: newClient.name.trim(), phone: newClient.phone.trim(),
-                visits: 0, points: 0, lastVisit: '—', lastDesign: '—',
+                visits: 0, points: 0, lastVisit: '—',
               }]);
               setNewClient({ name: '', phone: '', email: '' });
               setAddClientModal(false);
@@ -1527,7 +1527,7 @@ export function AdminDashboard() {
     }
     setLocalClients(cs => [...cs, {
       id: Date.now(), name: newClient.name.trim(), phone: newClient.phone.trim(),
-      visits: 0, points: 0, lastVisit: '—', lastDesign: '—',
+      visits: 0, points: 0, lastVisit: '—',
     }]);
     setNewClient({ name: '', phone: '', email: '' });
     setAddClientModal(false);
@@ -2632,7 +2632,7 @@ export function AdminDashboard() {
                 }))
                 .filter(c => {
                   const q = searchClient.trim().toLowerCase();
-                  const matchQ = !q || c.name.toLowerCase().includes(q) || c.phone.includes(q) || c.lastDesign.toLowerCase().includes(q);
+                  const matchQ = !q || c.name.toLowerCase().includes(q) || c.phone.includes(q);
                   const matchT = clientTier === 'all' || c.tier === clientTier;
                   return matchQ && matchT;
                 })
@@ -2683,7 +2683,7 @@ export function AdminDashboard() {
                               </Can>
                             </div>
                           </div>
-                          <div className="grid grid-cols-3 gap-2 mt-4 text-center">
+                          <div className="grid grid-cols-2 gap-2 mt-4 text-center">
                             <div className="rounded-xl bg-[#0d0b09]/70 border border-[#403521]/70 py-2">
                               <p className="font-serif text-base text-[#faf7f0] leading-none">{c.visits}</p>
                               <p className="text-[#6b6355] text-[10px] font-mono uppercase mt-1">visitas</p>
@@ -2691,10 +2691,6 @@ export function AdminDashboard() {
                             <div className="rounded-xl bg-[#0d0b09]/70 border border-[#403521]/70 py-2 px-1">
                               <p className="text-[#f9e9c8] text-[11px] font-medium leading-none truncate">{c.lastVisit}</p>
                               <p className="text-[#6b6355] text-[10px] font-mono uppercase mt-1">última</p>
-                            </div>
-                            <div className="rounded-xl bg-[#0d0b09]/70 border border-[#403521]/70 py-2 px-1">
-                              <p className="text-[#f2d29b] text-[11px] font-medium leading-none truncate">{c.lastDesign}</p>
-                              <p className="text-[#6b6355] text-[10px] font-mono uppercase mt-1">diseño</p>
                             </div>
                           </div>
                           <div className="mt-3">
@@ -3083,7 +3079,11 @@ export function AdminDashboard() {
               <p className="text-[#b3a893] text-xs font-mono">{filteredGcs.length} resultado(s)</p>
             </div>
 
-            {filteredGcs.length === 0 ? (
+            {serverGcQuery.isLoading ? (
+              <div className="bg-[#14110c] border border-[#403521] rounded-2xl py-14 text-center">
+                <p className="font-mono text-[#f2d29b] text-xs tracking-[0.3em] uppercase animate-pulse">Cargando gift cards…</p>
+              </div>
+            ) : filteredGcs.length === 0 ? (
               <div className="bg-[#14110c] border border-[#403521] rounded-2xl py-14 text-center">
                 <Gift size={28} className="mx-auto text-[#403521] mb-3" />
                 <p className="font-serif text-[#b3a893] text-lg">Sin gift cards con esos filtros</p>
