@@ -7,13 +7,27 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core import tokens
-from app.core.exceptions import InactiveUser, InvalidCredentials, TokenInvalid
+from app.core.exceptions import InactiveUser, InvalidCredentials, NoPermissions, TokenInvalid
 from app.core.security import dummy_verify, hash_password, verify_password
 from app.infrastructure.db.base import UserStatus
 from app.infrastructure.models.rbac import RefreshToken, User
 from app.infrastructure.repositories import rbac_repo
 
 logger = logging.getLogger(__name__)
+
+
+def revoke_all_for_user(db: Session, user_id: int) -> int:
+    """Mata sesión en backend: revoca todos los refresh vivos del usuario."""
+    rows = db.scalars(
+        select(RefreshToken).where(RefreshToken.user_id == user_id, RefreshToken.revoked.is_(False))
+    ).all()
+    for tok in rows:
+        tok.revoked = True
+        db.add(tok)
+    if rows:
+        db.commit()
+    logger.warning("Sesión matada en backend: user_id=%s, refresh_revocados=%s", user_id, len(rows))
+    return len(rows)
 
 
 def _touch_login(db: Session, user: User) -> None:
@@ -43,6 +57,10 @@ def login(db: Session, username: str, password: str) -> dict:
     user = authenticate(db, username, password)
     roles = rbac_repo.role_names_for_user(db, user.id)
     permissions = rbac_repo.permission_codes_for_user(db, user.id)
+    if not permissions:
+        # Sin permisos no hay nada que ver en el panel: no se emite sesión útil.
+        logger.warning("Login denegado sin permisos: %s (id=%s, roles=%s)", user.username, user.id, roles)
+        raise NoPermissions("Usuario sin permisos asignados. Contacta al administrador.")
     access, expires_in = tokens.create_access_token(
         sub=str(user.id), username=user.username, roles=roles, permissions=permissions
     )
@@ -55,11 +73,27 @@ def login(db: Session, username: str, password: str) -> dict:
 
 
 def refresh(db: Session, refresh_jwt: str) -> dict:
-    payload = tokens.decode_token(refresh_jwt, expected_type=tokens.REFRESH_TYPE)
+    try:
+        payload = tokens.decode_token(refresh_jwt, expected_type=tokens.REFRESH_TYPE)
+    except TokenInvalid:
+        # Firma manipulada o expirada: intento best-effort de matar la familia.
+        sub = tokens.unsafe_sub(refresh_jwt)
+        if sub is not None and sub.isdigit():
+            try:
+                revoke_all_for_user(db, int(sub))
+            except Exception:
+                pass
+        raise
     digest = hashlib.sha256(refresh_jwt.encode()).hexdigest()
     stored = db.scalar(select(RefreshToken).where(RefreshToken.token_hash == digest))
     from datetime import datetime
     if stored is None or stored.revoked or stored.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        # Posible robo/reuso: el refresh presentado ya no es el vigente -> mato todo.
+        try:
+            revoke_all_for_user(db, int(payload["sub"]))
+        except Exception:
+            pass
+        logger.warning("Refresh reuse o desconocido: sub=%s -> sesión matada", payload.get("sub"))
         raise TokenInvalid("Refresh inválido o expirado")
     # Rotación: revoca el usado y emite par nuevo
     stored.revoked = True
@@ -96,13 +130,9 @@ def logout(db: Session, refresh_jwt: str | None) -> None:
 def change_password(db: Session, user: User, new_password: str) -> None:
     user.password_hash = hash_password(new_password)
     db.add(user)
-    # Las sesiones existentes mueren: revoca todos los refresh vivos del usuario.
-    for tok in db.scalars(
-        select(RefreshToken).where(RefreshToken.user_id == user.id, RefreshToken.revoked.is_(False))
-    ).all():
-        tok.revoked = True
-        db.add(tok)
     db.commit()
+    # Las sesiones existentes mueren: revoca todos los refresh vivos del usuario.
+    revoke_all_for_user(db, user.id)
     logger.info("Contraseña actualizada y sesiones revocadas: %s (id=%s)", user.username, user.id)
 
 

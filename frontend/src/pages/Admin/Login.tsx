@@ -13,15 +13,26 @@ export function AdminLogin() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { user, hydrated, hydrate, login, busy } = useAuthStore();
+  const { user, hydrated, verified, hydrate, login, busy, error: storeError } = useAuthStore();
 
   useEffect(() => {
     if (!hydrated) void hydrate();
   }, [hydrated, hydrate]);
 
   useEffect(() => {
-    if (hydrated && user) navigate('/admin/dashboard', { replace: true });
-  }, [hydrated, user, navigate]);
+    // Solo sesión VERIFICADA por servidor redirige. Caché no autoriza.
+    if (!hydrated || !verified || !user) return;
+    if (!user.permissions || user.permissions.length === 0) {
+      void useAuthStore.getState().logout();
+      setError('Usuario sin permisos asignados. Contacta al administrador.');
+      return;
+    }
+    navigate('/admin/dashboard', { replace: true });
+  }, [hydrated, verified, user, navigate]);
+
+  useEffect(() => {
+    if (storeError) setError(storeError);
+  }, [storeError]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -27,3 +27,11 @@ class InactiveUser(DomainError):
 
 class TokenInvalid(DomainError):
     pass
+
+
+class TokenExpired(TokenInvalid):
+    pass
+
+
+class NoPermissions(DomainError):
+    pass

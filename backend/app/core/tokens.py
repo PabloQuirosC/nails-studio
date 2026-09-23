@@ -1,10 +1,15 @@
-"""Emisión y verificación de JWT (access corto + refresh)."""
+"""Emisión y verificación de JWT (access corto + refresh).
+
+Seguridad: la autorización NUNCA sale del JWT. Los claims roles/permissions
+son solo hint de UI; los guards consultan DB. Aquí se distingue firma
+inválida (posible manipulación) de expiración para matar sesión.
+"""
 from datetime import datetime, timedelta, timezone
 
 import jwt
 
 from app.core.config import settings
-from app.core.exceptions import TokenInvalid
+from app.core.exceptions import TokenExpired, TokenInvalid
 
 ACCESS_TYPE = "access"
 REFRESH_TYPE = "refresh"
@@ -40,8 +45,28 @@ def create_refresh_token(*, sub: str) -> tuple[str, str, datetime]:
 def decode_token(token: str, *, expected_type: str) -> dict:
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_alg])
+    except jwt.ExpiredSignatureError as exc:
+        raise TokenExpired("Token expirado") from exc
+    except jwt.InvalidSignatureError as exc:
+        raise TokenInvalid("Firma inválida: posible manipulación") from exc
+    except jwt.DecodeError as exc:
+        raise TokenInvalid("Token manipulado o corrupto") from exc
     except jwt.PyJWTError as exc:
         raise TokenInvalid("Token inválido o expirado") from exc
     if payload.get("type") != expected_type:
         raise TokenInvalid("Tipo de token incorrecto")
     return payload
+
+
+def unsafe_sub(token: str) -> str | None:
+    """Extrae `sub` sin verificar firma (solo para matar sesión + auditar).
+
+    Nunca se usa para autorizar. Si el token ni siquiera decodifica base64,
+    retorna None.
+    """
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+    except Exception:
+        return None
+    sub = payload.get("sub")
+    return str(sub) if sub is not None else None

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.application import auth_service
 from app.core import rate_limit
 from app.core.config import settings
-from app.core.exceptions import InactiveUser, InvalidCredentials, TokenInvalid
+from app.core.exceptions import InactiveUser, InvalidCredentials, NoPermissions, TokenInvalid
 from app.infrastructure.db.session import get_db
 from app.infrastructure.models.rbac import LoginAudit, User
 from app.infrastructure.repositories import rbac_repo
@@ -57,6 +57,10 @@ def login(body: schemas.LoginIn, request: Request, response: Response, db: Sessi
     rate_limit.hit("login", key)
     try:
         result = auth_service.login(db, body.username, body.password)
+    except NoPermissions as exc:
+        logger.warning("Login sin permisos: %s desde %s", body.username, request.client.host if request.client else "?")
+        _audit(db, username=body.username, user_id=None, success=False, request=request)
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc))
     except (InvalidCredentials, InactiveUser):
         logger.warning("Login fallido: %s desde %s", body.username, request.client.host if request.client else "?")
         _audit(db, username=body.username, user_id=None, success=False, request=request)
@@ -81,6 +85,9 @@ def refresh(body: _RefreshIn, request: Request, response: Response, db: Session 
     try:
         result = auth_service.refresh(db, raw)
     except TokenInvalid as exc:
+        # No se re-emite cookie: el front debe matar sesión local ante este 401.
+        response.delete_cookie(ACCESS_COOKIE, path="/")
+        response.delete_cookie(REFRESH_COOKIE, path="/")
         raise HTTPException(status_code=401, detail=str(exc)) from exc
     response.set_cookie(ACCESS_COOKIE, result["access_token"], **_cookie_params(result["expires_in"]))
     response.set_cookie(REFRESH_COOKIE, result["refresh_token"],
