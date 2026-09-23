@@ -425,7 +425,10 @@ def notify_user_created(*, username: str, email: str, full_name: str,
         dest = email.strip()
         if not dest:
             return False
-        login_url = (settings.frontend_origin or "").strip().rstrip("/") + "/admin"
+        base = settings.public_app_url
+        login_url = base + "/admin" if base else ""
+        acceso = (f"<a href='{_esc(login_url)}'>{_esc(login_url)}</a>" if login_url
+                  else "Solicita el enlace de acceso al administrador")
         html_body = base_template(
             title="Cuenta creada",
             heading="👋 Tu cuenta en Nails Studio",
@@ -433,7 +436,7 @@ def notify_user_created(*, username: str, email: str, full_name: str,
             rows=[
                 ("Nombre", _esc(full_name)),
                 ("Usuario", _esc(username)),
-                ("Acceso", f"<a href='{_esc(login_url)}'>{_esc(login_url)}</a>"),
+                ("Acceso", acceso),
             ],
             footer_note="Si no reconnaissez esta cuenta, avisa al administrador. Nunca compartimos contraseñas por correo.",
         )

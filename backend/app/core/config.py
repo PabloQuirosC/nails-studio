@@ -20,6 +20,8 @@ class Settings(BaseSettings):
 
     frontend_origin: str = "http://127.0.0.1:5173"
     allowed_origins: str = "http://127.0.0.1:5173"
+    # URL pública canónica del front (links de correo). Vacía = primer http(s) de frontend_origin.
+    public_frontend_url: str = ""
 
     smtp_user: str = ""
     smtp_password: str = ""
@@ -53,6 +55,18 @@ class Settings(BaseSettings):
             if origin and origin not in seen:
                 seen.append(origin)
         return seen
+
+    @property
+    def public_app_url(self) -> str:
+        """Origen único para links de correo (nunca lista coma-separada)."""
+        cand = (self.public_frontend_url or "").strip().rstrip("/")
+        if cand:
+            return cand
+        for part in (self.frontend_origin or "").split(","):
+            origin = part.strip().rstrip("/")
+            if origin.startswith("http://") or origin.startswith("https://"):
+                return origin
+        return ""
 
     @property
     def is_prod(self) -> bool:
