@@ -1,27 +1,4 @@
-"""Emails vía Resend: plantillas + best-effort (sin red real en tests)."""
-import sys
-import types
-
-
-def _ensure_resend_stub(monkeypatch):
-    """Si el paquete resend no está instalado en CI, stub para probar el cableado."""
-    try:
-        import resend  # noqa: F401
-        return None
-    except ImportError:
-        fake = types.ModuleType("resend")
-        fake.api_key = ""
-        sent = {}
-
-        class _Emails:
-            @staticmethod
-            def send(params):
-                sent.update(params)
-                return {"id": "test-id"}
-
-        fake.Emails = _Emails
-        monkeypatch.setitem(sys.modules, "resend", fake)
-        return sent
+"""Emails vía SMTP/Gmail: plantillas + best-effort (sin red real en tests)."""
 
 
 def test_base_template_escapa_html():
@@ -35,21 +12,18 @@ def test_base_template_escapa_html():
     assert "Nails Studio" in html
 
 
-def test_send_email_sin_key_retorna_false(monkeypatch):
+def test_send_email_sin_smtp_retorna_false(monkeypatch):
     from app.core import email as mail
 
-    monkeypatch.setattr(mail.settings, "email_provider", "resend")
-    monkeypatch.setattr(mail.settings, "resend_api_key", "")
-    monkeypatch.setattr(mail.settings, "email_from", "Nails Studio <onboarding@resend.dev>")
+    monkeypatch.setattr(mail.settings, "smtp_user", "")
+    monkeypatch.setattr(mail.settings, "smtp_password", "")
+    monkeypatch.setattr(mail.settings, "smtp_server", "")
     assert mail.send_email(to="a@x.com", subject="hola", html="<p>hola</p>") is False
 
 
 def test_notify_contact_usa_admin(monkeypatch):
     from app.core import email as mail
 
-    sent_box = _ensure_resend_stub(monkeypatch)
-    monkeypatch.setattr(mail.settings, "resend_api_key", "re_test")
-    monkeypatch.setattr(mail.settings, "email_from", "Nails Studio <onboarding@resend.dev>")
     monkeypatch.setattr(mail.settings, "admin_email", "admin@test.com")
 
     calls = []
@@ -114,9 +88,10 @@ def test_get_admin_emails_solo_activos_con_rol_admin():
 def test_notify_giftcard_y_review_no_lanzan(monkeypatch):
     from app.core import email as mail
 
-    monkeypatch.setattr(mail.settings, "email_provider", "resend")
-    monkeypatch.setattr(mail.settings, "resend_api_key", "")
-    # Sin key debe retornar False, nunca lanzar
+    monkeypatch.setattr(mail.settings, "smtp_user", "")
+    monkeypatch.setattr(mail.settings, "smtp_password", "")
+    monkeypatch.setattr(mail.settings, "smtp_server", "")
+    # Sin SMTP debe retornar False, nunca lanzar
     assert mail.notify_giftcard_redeemed(code="NS-GC-AAA", amount=100,
                                         buyer="B", recipient=None,
                                         used_at="hoy", actor="admin") is False
@@ -153,7 +128,6 @@ def test_send_email_por_smtp_con_mock(monkeypatch):
             sent["cid"] = "cid:nails-logo" in msg.get_body(("html",)).get_content()
 
     monkeypatch.setattr(smtplib, "SMTP", _FakeSMTP)
-    monkeypatch.setattr(mail.settings, "email_provider", "smtp")
     monkeypatch.setattr(mail.settings, "smtp_user", "nails@gmail.com")
     monkeypatch.setattr(mail.settings, "smtp_password", "xxxx-app-pass")
     monkeypatch.setattr(mail.settings, "smtp_server", "smtp.gmail.com")
@@ -168,8 +142,20 @@ def test_send_email_por_smtp_con_mock(monkeypatch):
 def test_send_email_smtp_sin_config_retorna_false(monkeypatch):
     from app.core import email as mail
 
-    monkeypatch.setattr(mail.settings, "email_provider", "smtp")
     monkeypatch.setattr(mail.settings, "smtp_user", "")
     monkeypatch.setattr(mail.settings, "smtp_password", "")
     monkeypatch.setattr(mail.settings, "smtp_server", "")
     assert mail.send_email(to="a@x.com", subject="x", html="<p>x</p>") is False
+
+
+def test_ics_invite_formato_valido():
+    from app.core.email import _ics_invite
+
+    ics = _ics_invite(appt_id=7, name="Ana", design="French",
+                      starts_at="2026-09-23T10:00:00+00:00",
+                      ends_at="2026-09-23T11:00:00+00:00", notes="hola")
+    assert "BEGIN:VEVENT" in ics
+    assert "DTSTART:20260923T100000Z" in ics
+    assert "DTEND:20260923T110000Z" in ics
+    assert "UID:cita-7@nailsstudio" in ics
+    assert "\n" not in ics.replace("\r\n", "")

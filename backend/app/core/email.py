@@ -1,11 +1,11 @@
-"""Envío de correos transaccionales vía Resend (best-effort, nunca rompe el flujo).
+"""Envío de correos transaccionales vía SMTP/Gmail (best-effort, nunca rompe el flujo).
 
 Uso:
     from app.core import email as mail
     mail.send_email(to="admin@x.com", subject="...", html="<p>...</p>")
 
-La API key vive en .env como RESEND_API_KEY (nunca hardcodeada).
-Si falta la key o Resend falla, se loguea y se retorna False.
+Credenciales en .env: SMTP_USER + SMTP_PASSWORD (App Password de Gmail).
+Si falta configuración o el envío falla, se loguea y se retorna False.
 """
 from __future__ import annotations
 
@@ -94,18 +94,6 @@ def base_template(*, title: str, heading: str, intro: str, rows: list[tuple[str,
 </div></body></html>"""
 
 
-def _client() -> tuple[bool, str]:
-    key = (settings.resend_api_key or "").strip()
-    sender = (settings.email_from or "").strip()
-    if not key:
-        logger.warning("RESEND_API_KEY ausente: correo omitido (subject pendiente)")
-        return False, ""
-    if not sender:
-        logger.warning("EMAIL_FROM ausente: correo omitido")
-        return False, ""
-    return True, sender
-
-
 def _smtp_configured() -> bool:
     return bool(
         (settings.smtp_user or "").strip()
@@ -119,7 +107,8 @@ def _smtp_sender() -> str:
 
 
 def _send_smtp(*, sender: str, dests: list[str], subject: str, html: str,
-               reply_to: str | None = None) -> None:
+               reply_to: str | None = None,
+               attachments: list[dict] | None = None) -> None:
     """SMTP (Gmail con App Password). Lanza excepción si falla."""
     import smtplib
     from email.message import EmailMessage
@@ -144,6 +133,14 @@ def _send_smtp(*, sender: str, dests: list[str], subject: str, html: str,
                 _b64.b64decode(logo), maintype="image", subtype="jpeg",
                 cid=f"<{LOGO_CID}>", filename="logo.jpg",
             )
+    for att in attachments or []:
+        import base64 as _b64
+
+        maintype, _, subtype = (att.get("content_type") or "application/octet-stream").partition("/")
+        msg.add_attachment(
+            _b64.b64decode(att["content"]), maintype=maintype or "application",
+            subtype=subtype or "octet-stream", filename=att.get("filename") or "adjunto",
+        )
     server = (settings.smtp_server or "").strip()
     port = int(settings.smtp_port or 587)
     timeout = int(settings.smtp_timeout or 10)
@@ -153,6 +150,44 @@ def _send_smtp(*, sender: str, dests: list[str], subject: str, html: str,
         smtp.login((settings.smtp_user or "").strip(),
                    (settings.smtp_password or "").strip().replace(" ", ""))
         smtp.send_message(msg)
+
+
+def _ics_invite(*, appt_id: int, name: str, design: str | None,
+                starts_at: str, ends_at: str, notes: str | None) -> str:
+    """Invitación de calendario (.ics) para que la clienta la guarde."""
+    from datetime import datetime, timezone
+
+    def _fmt(value: str) -> str:
+        try:
+            dt = datetime.fromisoformat(value)
+        except ValueError:
+            return value.replace("-", "").replace(":", "")
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(timezone.utc)
+            return dt.strftime("%Y%m%dT%H%M%SZ")
+        return dt.strftime("%Y%m%dT%H%M%S")
+
+    def _text(value: object | None) -> str:
+        return str(value or "").replace("\\", "\\\\").replace("\n", "\\n").replace(",", "\\,")[:500]
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    summary = f"Cita Nails Studio #{appt_id}" + (f" - {design}" if (design or "").strip() else "")
+    desc = "Reserva a nombre de " + str(name) + ". " + str(notes or "")
+    return "\r\n".join([
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Nails Studio//Citas//ES",
+        "BEGIN:VEVENT",
+        f"UID:cita-{appt_id}@nailsstudio",
+        f"DTSTAMP:{stamp}",
+        f"DTSTART:{_fmt(starts_at)}",
+        f"DTEND:{_fmt(ends_at)}",
+        f"SUMMARY:{_text(summary)}",
+        f"DESCRIPTION:{_text(desc.strip())}",
+        "LOCATION:Nails Studio",
+        "END:VEVENT",
+        "END:VCALENDAR",
+    ])
 
 
 def get_admin_emails(db) -> list[str]:
@@ -196,47 +231,28 @@ def _admin_dests(explicit: list[str] | None) -> list[str]:
     return [fallback] if fallback else []
 
 
-def send_email(*, to: str | list[str], subject: str, html: str, reply_to: str | None = None) -> bool:
-    """Envía un correo. Retorna True si fue aceptado, False si se omitió/falló.
+def send_email(*, to: str | list[str], subject: str, html: str, reply_to: str | None = None,
+               attachments: list[dict] | None = None) -> bool:
+    """Envía un correo por SMTP (Gmail). Retorna True si fue aceptado, False si no.
 
-    Proveedor: EMAIL_PROVIDER=auto|smtp|resend. En auto se usa SMTP si está
-    configurado (Gmail) y si no Resend.
+    attachments: [{filename, content (b64), content_type}] (ej. .ics de la cita).
     """
     dests = [to] if isinstance(to, str) else list(to)
     dests = [d.strip() for d in dests if d and d.strip()]
     if not dests:
         logger.warning("send_email sin destinatarios: subject=%s", subject)
         return False
-    provider = (settings.email_provider or "auto").strip().lower()
-    want_smtp = provider == "smtp" or (provider == "auto" and _smtp_configured())
     try:
-        if want_smtp:
-            if not _smtp_configured():
-                logger.warning("EMAIL_PROVIDER=smtp pero falta SMTP_USER/PASSWORD/SERVER")
-                return False
-            sender = _smtp_sender()
-            if not sender:
-                logger.warning("SMTP_FROM/SMTP_USER ausente: correo omitido")
-                return False
-            _send_smtp(sender=sender, dests=dests, subject=subject, html=html, reply_to=reply_to)
-            logger.info("Correo enviado vía SMTP: to=%s subject=%s", ",".join(dests), subject)
-            return True
-        ok, sender = _client()
-        if not ok:
+        if not _smtp_configured():
+            logger.warning("SMTP sin configurar (SMTP_USER/PASSWORD/SERVER): correo omitido")
             return False
-        import resend  # import local: tests sin red no requieren el paquete hasta enviar
-
-        resend.api_key = settings.resend_api_key.strip()
-        params: dict = {"from": sender, "to": dests, "subject": subject, "html": html}
-        if reply_to:
-            params["reply_to"] = reply_to
-        logo = _logo_b64() if f"cid:{LOGO_CID}" in html else None
-        if logo:
-            params["attachments"] = [
-                {"content": logo, "filename": "logo.jpg", "content_id": LOGO_CID}
-            ]
-        resend.Emails.send(params)  # type: ignore[arg-type]
-        logger.info("Correo enviado vía Resend: to=%s subject=%s", ",".join(dests), subject)
+        sender = _smtp_sender()
+        if not sender:
+            logger.warning("SMTP_FROM/SMTP_USER ausente: correo omitido")
+            return False
+        _send_smtp(sender=sender, dests=dests, subject=subject, html=html,
+                   reply_to=reply_to, attachments=attachments)
+        logger.info("Correo enviado vía SMTP: to=%s subject=%s", ",".join(dests), subject)
         return True
     except Exception as exc:  # best-effort: el correo nunca tumba la request
         logger.warning("Envío falló (to=%s subject=%s): %s", ",".join(dests), subject, exc)
@@ -295,13 +311,37 @@ def notify_appointment_booked(*, admin_copy: bool = True, client_email: str | No
         sent = False
         if admin_copy:
             dests = _admin_dests(admin_emails)
-            # En modo prueba Resend solo deja al dueño; el resto se intenta igual (best-effort).
             if dests:
                 sent = send_email(to=dests, subject=subject,
                                   html=html_body, reply_to=_safe_reply_to(client_email)) or sent
         if client_email and client_email.strip():
-            sent = send_email(to=client_email.strip(), subject=_subj(f"Nails Studio: recibimos tu cita #{appt_id}"),
-                              html=html_body) or sent
+            import base64 as _b64
+
+            ics = _ics_invite(appt_id=appt_id, name=name.strip(), design=design,
+                              starts_at=starts_at, ends_at=ends_at, notes=notes)
+            html_client = base_template(
+                title="Tu cita en Nails Studio",
+                heading="Tu cita quedó agendada",
+                intro=f"Hola {name.strip()}, te esperamos. Guarda el recordatorio adjunto en tu calendario.",
+                rows=[
+                    ("Diseño", _esc(design)),
+                    ("Inicio", _esc(starts_at)),
+                    ("Fin", _esc(ends_at)),
+                    ("Notas", _esc(notes)),
+                    ("Folio", _esc(appt_id)),
+                ],
+                footer_note="Si no puedes asistir, avísanos para liberar tu espacio.",
+            )
+            sent = send_email(
+                to=client_email.strip(),
+                subject=_subj(f"Nails Studio: tu cita #{appt_id} · {starts_at}", 140),
+                html=html_client,
+                attachments=[{
+                    "filename": f"cita-{appt_id}.ics",
+                    "content": _b64.b64encode(ics.encode("utf-8")).decode("ascii"),
+                    "content_type": "text/calendar",
+                }],
+            ) or sent
         return sent
     except Exception as exc:
         logger.warning("notify_appointment_booked falló: %s", exc)

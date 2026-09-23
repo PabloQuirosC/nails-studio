@@ -21,10 +21,6 @@ class Settings(BaseSettings):
     frontend_origin: str = "http://127.0.0.1:5173"
     allowed_origins: str = "http://127.0.0.1:5173"
 
-    resend_api_key: str = ""
-    email_from: str = "Nails Studio <onboarding@resend.dev>"
-    email_provider: str = "auto"  # auto|smtp|resend
-
     smtp_user: str = ""
     smtp_password: str = ""
     smtp_server: str = ""
