@@ -6,6 +6,7 @@ import {
   ChevronLeft, ChevronRight, Shield, Check, X as XIcon,
   Search, UserPlus, Key, Clock, ArrowRight, Sparkles,
   Phone, MessageCircle, Crown, Copy, Star, BookOpen, Heart, Mail, Share2,
+  User, Menu,
 } from 'lucide-react';
 import { DESIGNS, CATEGORIES } from '../../data';
 import { useAuthStore } from '../../shared/auth/auth-store';
@@ -193,6 +194,7 @@ export function AdminDashboard() {
   const [permPage, setPermPage] = useState(1);
   const [searchClient,setSearchClient]= useState('');
   const [clientTier,  setClientTier]  = useState<'all' | 'vip' | 'oro' | 'nueva'>('all');
+  const [mobileUserOpen, setMobileUserOpen] = useState(false);
 
   // Modals
   const [deleteDesignModal, setDeleteDesignModal] = useState<{ open: boolean; id: number | null }>({ open: false, id: null });
@@ -252,6 +254,21 @@ export function AdminDashboard() {
     // La protección real la hace <ProtectedRoute>; aquí solo hidratamos por si entra directo.
     void useAuthStore.getState().hydrate();
   }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as Node;
+      const menu = document.querySelector('[role="menu"]');
+      const trigger = document.querySelector('[aria-label="Menú de usuario"]');
+      if (menu && !menu.contains(target) && trigger && !trigger.contains(target)) {
+        setMobileUserOpen(false);
+      }
+    }
+    if (mobileUserOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [mobileUserOpen]);
 
   // Usuario real de la sesión para el sidebar (nada hardcodeado).
   const sessionUser = useAuthStore(s => s.user);
@@ -1934,16 +1951,55 @@ export function AdminDashboard() {
       {/* ── Mobile tab bar premium ── */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-[#3a2f1e] flex overflow-x-auto px-2 py-1.5"
         style={{ background: 'rgba(13,11,10,0.92)', backdropFilter: 'blur(16px)' }}>
-        {visibleTabs.map(t => {
-          const active = tab === t.id;
-          return (
-            <button key={t.id} onClick={() => goTab(t.id)}
-              className={`relative flex-1 min-w-[4rem] py-2 flex flex-col items-center gap-1 text-[9px] rounded-lg transition-all duration-300 active:scale-95 ${active ? 'text-[#f9e9c8] bg-[#f2d29b]/12' : 'text-[#b3a893]'}`}>
-              <span className={`absolute top-0 w-6 h-[2px] rounded-full transition-all duration-300 ${active ? 'opacity-100 bg-[#f2d29b]' : 'opacity-0'}`} style={active ? { boxShadow: '0 0 8px rgba(242,210,155,0.9)' } : undefined} />
-              <t.icon size={16} className={`transition-transform duration-300 ${active ? 'scale-110' : ''}`} /> {t.label}
-            </button>
-          );
-        })}
+        <div className="flex-1 overflow-x-auto">
+          {visibleTabs.map(t => {
+            const active = tab === t.id;
+            return (
+              <button key={t.id} onClick={() => goTab(t.id)}
+                className={`relative flex-1 min-w-[4rem] py-2 flex flex-col items-center gap-1 text-[9px] rounded-lg transition-all duration-300 active:scale-95 ${active ? 'text-[#f9e9c8] bg-[#f2d29b]/12' : 'text-[#b3a893]'}`}>
+                <span className={`absolute top-0 w-6 h-[2px] rounded-full transition-all duration-300 ${active ? 'opacity-100 bg-[#f2d29b]' : 'opacity-0'}`} style={active ? { boxShadow: '0 0 8px rgba(242,210,155,0.9)' } : undefined} />
+                <t.icon size={16} className={`transition-transform duration-300 ${active ? 'scale-110' : ''}`} /> {t.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="relative flex items-center">
+          <button
+            type="button"
+            aria-expanded={mobileUserOpen}
+            aria-label="Menú de usuario"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-[#b3a893] hover:text-[#faf7f0] hover:bg-white/[0.04] transition-colors"
+            onClick={() => setMobileUserOpen(o => !o)}
+          >
+            <div className="w-8 h-8 rounded-full flex items-center justify-center font-serif text-xs shrink-0 border border-[#f2d29b]/40 text-[#f9e9c8]"
+              style={{ background: 'linear-gradient(135deg,#2a2013,#120e0a)' }}>{sessionInitial}</div>
+            <Menu size={16} className={mobileUserOpen ? 'rotate-180' : ''} />
+          </button>
+          {mobileUserOpen && (
+            <div className="absolute bottom-full right-0 mb-2 w-48 glass border border-[#3a2f1e] rounded-xl p-2 shadow-[0_8px_32px_rgba(0,0,0,0.5)] animate-fade-in"
+              role="menu"
+            >
+              <div className="px-3 py-2 border-b border-[#3a2f1e]">
+                <p className="text-[#faf7f0] text-sm font-medium truncate">{sessionName}</p>
+                <p className="text-[#b3a893] text-[11px] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#8aab8a] animate-pulse" /> {sessionRole || 'Sesión activa'}</p>
+              </div>
+              <button
+                onClick={() => navigate('/')}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[#b3a893] hover:text-[#f9e9c8] hover:bg-[#f2d29b]/10 text-xs transition-colors"
+                role="menuitem"
+              >
+                Ver sitio
+              </button>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[#b3a893] hover:text-[#e08a6d] hover:bg-[#d4613a]/10 text-xs transition-colors"
+                role="menuitem"
+              >
+                <LogOut size={12} /> Salir
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Main content ── */}
