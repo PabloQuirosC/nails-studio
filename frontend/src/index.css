@@ -221,6 +221,12 @@ body {
 .img-hover-zoom img { transition: transform 0.7s cubic-bezier(0.22,1,0.36,1); }
 .img-hover-zoom:hover img { transform: scale(1.07); }
 
+/* ── Safe area insets ── */
+.safe-top { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-left { padding-left: env(safe-area-inset-left); }
+.safe-right { padding-right: env(safe-area-inset-right); }
+
 /* ── Noise overlay ── */
 .noise::after {
   content: '';
