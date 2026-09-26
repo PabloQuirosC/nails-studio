@@ -277,6 +277,32 @@ export function AdminDashboard() {
   const sessionRole = sessionUser?.roles?.[0] ?? '';
   const sessionInitial = (sessionName.trim()[0] ?? '?').toUpperCase();
 
+  // Mobile drawer state
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    if (mobileDrawerOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileDrawerOpen]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && mobileDrawerOpen) {
+        setMobileDrawerOpen(false);
+      }
+    };
+    if (mobileDrawerOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [mobileDrawerOpen]);
+
+  useEffect(() => {
+    setMobileDrawerOpen(false);
+  }, [tab]);
+
   // Tabs visibles según permisos VERIFICADOS por servidor. Caché no autoriza.
   const canSeeTab = (id: string): boolean => {
     if (!verified) return id === 'overview';
@@ -1946,67 +1972,126 @@ export function AdminDashboard() {
             </button>
           </div>
         </div>
-      </aside>
+</aside>
 
-      {/* ── Mobile tab bar premium ── */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-[#3a2f1e] flex overflow-x-auto px-2 py-1.5"
-        style={{ background: 'rgba(13,11,10,0.92)', backdropFilter: 'blur(16px)' }}>
-        <div className="flex-1 overflow-x-auto">
-          {visibleTabs.map(t => {
-            const active = tab === t.id;
-            return (
-              <button key={t.id} onClick={() => goTab(t.id)}
-                className={`relative flex-1 min-w-[4rem] py-2 flex flex-col items-center gap-1 text-[9px] rounded-lg transition-all duration-300 active:scale-95 ${active ? 'text-[#f9e9c8] bg-[#f2d29b]/12' : 'text-[#b3a893]'}`}>
-                <span className={`absolute top-0 w-6 h-[2px] rounded-full transition-all duration-300 ${active ? 'opacity-100 bg-[#f2d29b]' : 'opacity-0'}`} style={active ? { boxShadow: '0 0 8px rgba(242,210,155,0.9)' } : undefined} />
-                <t.icon size={16} className={`transition-transform duration-300 ${active ? 'scale-110' : ''}`} /> {t.label}
-              </button>
-            );
-          })}
-        </div>
-        <div className="relative flex items-center">
-          <button
-            type="button"
-            aria-expanded={mobileUserOpen}
-            aria-label="Menú de usuario"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-[#b3a893] hover:text-[#faf7f0] hover:bg-white/[0.04] transition-colors"
-            onClick={() => setMobileUserOpen(o => !o)}
+      {/* ── Mobile drawer (lg:hidden) ── */}
+      {mobileDrawerOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden animate-fade-in"
+            onClick={() => setMobileDrawerOpen(false)}
+            aria-hidden="true"
+          />
+          <aside
+            className="fixed top-0 left-0 z-50 lg:hidden w-72 max-w-[85vw] h-dvh h-[100dvh] flex flex-col border-r border-[#3a2f1e] overflow-hidden animate-slide-right"
+            style={{
+              background: 'linear-gradient(180deg, #100c07 0%, #0d0b09 45%, #0a0806 100%)',
+              paddingTop: 'env(safe-area-inset-top)',
+              paddingBottom: 'env(safe-area-inset-bottom)',
+            }}
+            role="dialog"
+            aria-label="Menú de navegación"
           >
-            <div className="w-8 h-8 rounded-full flex items-center justify-center font-serif text-xs shrink-0 border border-[#f2d29b]/40 text-[#f9e9c8]"
-              style={{ background: 'linear-gradient(135deg,#2a2013,#120e0a)' }}>{sessionInitial}</div>
-            <Menu size={16} className={mobileUserOpen ? 'rotate-180' : ''} />
-          </button>
-          {mobileUserOpen && (
-            <div className="absolute bottom-full right-0 mb-2 w-48 glass border border-[#3a2f1e] rounded-xl p-2 shadow-[0_8px_32px_rgba(0,0,0,0.5)] animate-fade-in"
-              role="menu"
-            >
-              <div className="px-3 py-2 border-b border-[#3a2f1e]">
-                <p className="text-[#faf7f0] text-sm font-medium truncate">{sessionName}</p>
-                <p className="text-[#b3a893] text-[11px] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#8aab8a] animate-pulse" /> {sessionRole || 'Sesión activa'}</p>
+            {/* Brand header */}
+            <div className="relative px-5 pt-6 pb-5 border-b border-[#3a2f1e]/70 flex items-center justify-between">
+              <div className="flex items-center gap-3 animate-fade-in">
+                <div className="relative">
+                  <img
+                    src="/logo.jpg"
+                    alt="Nails Studio"
+                    className="w-10 h-10 rounded-2xl object-cover border border-[#f2d29b]/40"
+                    style={{ boxShadow: '0 0 20px rgba(242,210,155,0.25)' }}
+                  />
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#8aab8a] border-2 border-[#0d0b09]" title="En línea" />
+                </div>
+                <div>
+                  <p className="font-serif text-[17px] leading-none text-[#faf7f0]">Nails <span className="text-gradient-subtle">Studio</span></p>
+                </div>
               </div>
               <button
-                onClick={() => navigate('/')}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[#b3a893] hover:text-[#f9e9c8] hover:bg-[#f2d29b]/10 text-xs transition-colors"
-                role="menuitem"
+                type="button"
+                aria-label="Cerrar menú"
+                className="w-9 h-9 flex items-center justify-center text-[#a29885] hover:text-[#faf7f0] active:scale-[0.97] transition-[transform,color] duration-150 rounded-lg hover:bg-white/[0.04]"
+                onClick={() => setMobileDrawerOpen(false)}
               >
-                Ver sitio
-              </button>
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[#b3a893] hover:text-[#e08a6d] hover:bg-[#d4613a]/10 text-xs transition-colors"
-                role="menuitem"
-              >
-                <LogOut size={12} /> Salir
+                <XIcon size={20} />
               </button>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* ── Main content ── */}
+            {/* Nav — scroll con safe-area */}
+            <nav className="relative flex-1 overflow-y-auto overscroll-contain px-3 py-4 space-y-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+              {([
+                { section: 'Gestión', ids: ['overview', 'catalog', 'agenda'] },
+                { section: 'Personas', ids: ['clients', 'users'] },
+                { section: 'Negocio', ids: ['giftcards', 'referidos', 'reviews', 'blog', 'nosotros', 'contacto'] },
+              ] as const).map(group => (
+                <div key={group.section}>
+                  <p className="px-3 mb-2 font-mono text-[9px] tracking-[0.28em] uppercase text-[#6b6355]">{group.section}</p>
+                  <div className="space-y-1">
+                    {group.ids.filter(canSeeTab).map(id => {
+                      const t = TABS.find(x => x.id === id)!;
+                      const active = tab === t.id;
+                      return (
+                        <button key={t.id} onClick={() => { goTab(t.id); setMobileDrawerOpen(false); }}
+                          className={`group relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] transition-all duration-300 animate-slide-right ${active ? 'text-[#f9e9c8]' : 'text-[#b3a893] hover:text-[#faf7f0] hover:bg-white/[0.04] hover:translate-x-0.5'}`}
+                          style={active ? { background: 'linear-gradient(90deg, rgba(242,210,155,0.18) 0%, rgba(242,210,155,0.06) 100%)', boxShadow: 'inset 0 0 0 1px rgba(242,210,155,0.22)' } : undefined}>
+                          <span className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-full transition-all duration-300 ${active ? 'h-6 opacity-100' : 'h-0 opacity-0'}`}
+                            style={{ background: 'linear-gradient(180deg,#f9e9c8,#f2d29b)', boxShadow: active ? '0 0 12px rgba(242,210,155,0.8)' : undefined }} />
+                          <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300 group-hover:scale-105 ${active ? 'border border-[#f2d29b]/40' : 'border border-transparent bg-white/[0.03] group-hover:border-[#f2d29b]/20'}`}
+                            style={active ? { background: 'linear-gradient(135deg,#2a2013,#120e0a)', color: '#f9e9c8' } : undefined}>
+                            <t.icon size={15} className="transition-transform duration-300 group-hover:scale-110 group-active:scale-95" />
+                          </span>
+                          <span className="flex-1 text-left font-medium tracking-wide">{t.label}</span>
+                          <ChevronRight size={12} className={`transition-all duration-300 ${active ? 'opacity-100 translate-x-0 text-[#f2d29b]' : 'opacity-0 -translate-x-1 group-hover:opacity-60 group-hover:translate-x-0'}`} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </nav>
+
+            {/* Staff + salida */}
+            <div className="relative p-3 border-t border-[#3a2f1e]/70 space-y-2" style={{ background: 'rgba(0,0,0,0.25)' }}>
+              <div className="flex items-center gap-3 px-2 py-2 rounded-xl border border-[#403521]/70 bg-white/[0.02]">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center font-serif text-sm shrink-0 border border-[#f2d29b]/40 text-[#f9e9c8]"
+                  style={{ background: 'linear-gradient(135deg,#2a2013,#120e0a)' }}>{sessionInitial}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[#faf7f0] text-[13px] font-medium truncate">{sessionName}</p>
+                  <p className="text-[#b3a893] text-[11px] flex items-center gap-1.5 truncate"><span className="w-1.5 h-1.5 rounded-full bg-[#8aab8a] animate-pulse shrink-0" /> {sessionRole || 'Sesión activa'}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => { navigate('/'); setMobileDrawerOpen(false); }}
+                  className="py-2 rounded-xl border border-[#403521] text-[#b3a893] hover:text-[#f9e9c8] hover:border-[#f2d29b]/40 hover:bg-[#f2d29b]/[0.06] text-xs transition-all duration-300 hover:-translate-y-px">
+                  Ver sitio
+                </button>
+                <button onClick={handleLogout}
+                  className="py-2 rounded-xl border border-transparent text-[#b3a893] hover:text-[#e08a6d] hover:border-[#d4613a]/30 hover:bg-[#d4613a]/10 text-xs transition-all duration-300 hover:-translate-y-px flex items-center justify-center gap-1.5">
+                  <LogOut size={12} /> Salir
+                </button>
+              </div>
+            </div>
+          </aside>
+        </>
+      )}
+
+{/* ── Main content ── */}
       <main className="lg:ml-60 flex-1 p-6 pb-24 lg:pb-6 pt-8 max-w-full">
-        {/* Top bar */}
+        {/* Top bar - responsive */}
         <div className="flex items-center justify-between mb-8">
-          <h1 className="font-serif text-2xl text-[#faf7f0]">{TABS.find(t => t.id === tab)?.label}</h1>
+          <div className="lg:hidden w-10" />
+          <button
+            type="button"
+            aria-label="Abrir menú"
+            aria-expanded={mobileDrawerOpen}
+            className="lg:hidden w-10 h-10 flex items-center justify-center text-[#a29885] hover:text-[#faf7f0] active:scale-[0.97] transition-[transform,color] duration-150 rounded-xl hover:bg-white/[0.04]"
+            onClick={() => setMobileDrawerOpen(true)}
+          >
+            <Menu size={22} />
+          </button>
+          <h1 className="font-serif text-2xl text-[#faf7f0] flex-1 text-center lg:text-left">{TABS.find(t => t.id === tab)?.label}</h1>
+          <div className="w-10 lg:w-auto" />
         </div>
 
         {/* ════════════════════════════════════

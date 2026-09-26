@@ -100,7 +100,7 @@ export function Navbar() {
 
         {/* Mobile menu */}
         {open && (
-          <div className="lg:hidden glass border-t border-[#3a2f1e] animate-fade-in">
+          <div className="lg:hidden glass border-t border-[#3a2f1e] animate-fade-in max-h-screen overflow-y-auto">
             <div className="px-6 py-6 flex flex-col gap-1">
               {LINKS.map((l, i) => (
                 <Link
