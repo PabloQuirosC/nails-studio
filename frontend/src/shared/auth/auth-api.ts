@@ -1,5 +1,7 @@
 /** Modelos + endpoints de auth/RBAC (contratos del backend Hexagonal). */
-import { apiFetch, clearToken, setToken } from './api-client';
+import { apiFetch, clearToken, isTamperDetail, setToken } from './api-client';
+
+export { isTamperDetail };
 
 export interface Me {
   id: number;
@@ -25,6 +27,20 @@ export async function loginApi(username: string, password: string): Promise<Me> 
 
 export async function getMeApi(): Promise<Me> {
   return apiFetch<Me>('/api/v1/auth/me', { message: 'Cargando tu sesión…', block: false });
+}
+
+/** Renueva el par con la cookie ns_refresh (el backend rota: revoca la usada
+ * y emite una nueva). Solo para expiración/ausencia de access, jamás ante
+ * manipulación: un refresh inválido también mata la familia en el servidor. */
+export async function refreshApi(): Promise<Me> {
+  const tok = await apiFetch<TokenRes>('/api/v1/auth/refresh', {
+    method: 'POST',
+    body: JSON.stringify({}),
+    message: 'Renovando sesión…',
+    block: false,
+  });
+  setToken(tok.access_token);
+  return getMeApi();
 }
 
 export async function logoutApi(): Promise<void> {

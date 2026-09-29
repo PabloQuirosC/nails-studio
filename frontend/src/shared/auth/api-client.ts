@@ -34,7 +34,16 @@ function emitForceLogout(reason: string): void {
   } catch { /* SSR / sin window */ }
 }
 
-const TAMPER_HINTS = ['manipulaci', 'manipulado', 'firma inv', 'invalidada', 'expirado', 'expired'];
+// Expirar es normal (el access vive 15 min y se renueva vía /refresh);
+// solo la firma manipulada es kill. No meter aquí 'expirado'.
+const TAMPER_HINTS = ['manipulaci', 'manipulado', 'firma inv', 'invalidada'];
+
+/** ¿El detalle de un 401 indica manipulación? El store lo usa para decidir
+ * si intenta renovación silenciosa (nunca ante tamper). */
+export function isTamperDetail(detail: string): boolean {
+  const lowered = detail.toLowerCase();
+  return TAMPER_HINTS.some((h) => lowered.includes(h));
+}
 
 /** Polling de listas admin: se refrescan solas sin recargar (20 s, pausado en pestaña oculta). */
 export const LIVE_REFRESH_MS = 20_000;
@@ -77,7 +86,7 @@ export async function apiFetch<T>(path: string, init?: ApiInit): Promise<T> {
       // Anónimo sin sesión ("No autenticado"): caso normal en /admin sin login.
       // Nunca es kill global, solo limpia el token en memoria.
       const isAnonymous = lowered.includes('no autenticado') || lowered.includes('sin refresh token');
-      const tampered = !isAnonymous && TAMPER_HINTS.some((h) => lowered.includes(h));
+      const tampered = !isAnonymous && isTamperDetail(detail);
       // 401 siempre mata token en memoria; si huele a tamper/expiración, kill total front.
       if (tampered || (!isAnonymous && detail === '')) {
         emitForceLogout(detail || 'unauthorized');

@@ -1,11 +1,22 @@
 /** Store de sesión (Zustand): usuario + roles + permisos SOLO en memoria.
  * Política dura: CERO storage (ni localStorage ni sessionStorage guardan sesión).
  * Al recargar se revalida contra el servidor vía cookie httpOnly; en
- * Application no debe aparecer ninguna clave ns_*.
+ * Application no debe aparecer ninguna clave ns_*. Si el access venció pero
+ * el refresh vive, se renueva en silencio (single-flight: el backend rota y
+ * mata la familia ante reuso, así que jamás hay dos refresh en vuelo).
  */
 import { create } from 'zustand';
-import { getMeApi, loginApi, logoutApi, type Me } from './auth-api';
+import { getMeApi, isTamperDetail, loginApi, logoutApi, refreshApi, type Me } from './auth-api';
 import { ApiError, FORCE_LOGOUT_EVENT, purgeClientSession } from './api-client';
+
+/** Vuelo único de renovación: hydrate corre en guard + dashboard a la vez. */
+let refreshFlight: Promise<Me> | null = null;
+function singleFlightRefresh(): Promise<Me> {
+  if (!refreshFlight) {
+    refreshFlight = refreshApi().finally(() => { refreshFlight = null; });
+  }
+  return refreshFlight;
+}
 
 // Limpieza legacy una vez al cargar: borra ns_session_user viejo para que
 // Application quede limpio. Solo removeItem, nunca escribe.
@@ -57,15 +68,28 @@ export const useAuthStore = create<AuthState>((set) => ({
   hydrate: async () => {
     // Sin caché: siempre se revalida contra el servidor (cookie httpOnly).
     // En Application no queda ninguna clave ns_*.
-    try {
-      const me = await getMeApi();
+    const accept = (me: Me): boolean => {
       if (!me.permissions || me.permissions.length === 0) {
         purgeClientSession();
         set({ user: null, hydrated: true, verified: false, error: 'Usuario sin permisos asignados.' });
-        return;
+        return false;
       }
-      set({ user: me, hydrated: true, verified: true });
-    } catch {
+      set({ user: me, hydrated: true, verified: true, error: null });
+      return true;
+    };
+    try {
+      const me = await getMeApi();
+      accept(me);
+    } catch (err) {
+      // Access vencido/ausente pero refresh vivo -> renovación silenciosa.
+      // Ante manipulación NO se reintenta (el kill global ya se emitió).
+      if (err instanceof ApiError && err.status === 401 && !isTamperDetail(err.message)) {
+        try {
+          const me = await singleFlightRefresh();
+          accept(me);
+          return;
+        } catch { /* refresh muerto: cae al logout suave */ }
+      }
       purgeClientSession();
       set({ user: null, hydrated: true, verified: false });
     }

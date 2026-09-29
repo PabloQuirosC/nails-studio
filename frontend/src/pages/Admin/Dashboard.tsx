@@ -2239,15 +2239,24 @@ export function AdminDashboard() {
                         .find(a => a.status === 'pending' || a.status === 'confirmed')
                     : null;
                   if (!upcoming) {
+                    // Sin próxima cita real no se inventa ninguna: estado vacío
+                    // honesto. El mock "Ana López" se eliminó (botón muerto).
                     return (
-                <div className="rounded-2xl p-5 border border-[#f2d29b]/30 relative overflow-hidden"
-                  style={{ background: 'linear-gradient(135deg, #2a2013 0%, #1a1409 100%)' }}>
-                  <p className="font-mono text-[#f2d29b] text-[10px] tracking-[0.25em] uppercase mb-2">Ahora mismo · Silla 1</p>
-                  <p className="font-serif text-xl text-[#faf7f0]">Ana López</p>
-                  <p className="text-[#d8cfbf] text-xs mt-1">Botanical Garden · con Gaby · 10:00 – 12:00</p>
+                <div className="rounded-2xl p-5 border border-[#403521] relative overflow-hidden"
+                  style={{ background: 'linear-gradient(135deg, #1a140d 0%, #120e0a 100%)' }}>
+                  <p className="font-mono text-[#f2d29b] text-[10px] tracking-[0.25em] uppercase mb-2">Próxima cita</p>
+                  <p className="font-serif text-xl text-[#faf7f0]">
+                    {onlineToday ? 'Sin citas pendientes hoy' : 'Sin conexión al servidor'}
+                  </p>
+                  <p className="text-[#d8cfbf] text-xs mt-1">
+                    {onlineToday
+                      ? 'La agenda de hoy está libre o todo está en curso.'
+                      : 'Conecta el servidor para ver tu día.'}
+                  </p>
                   <div className="flex gap-2 mt-4">
-                    <button className="flex-1 py-2 bg-[#f2d29b] text-[#0d0b09] text-xs font-semibold rounded-lg hover:bg-[#f7ddab] transition-colors">Iniciar servicio</button>
-                    <button onClick={() => goTab('clients')} className="flex-1 py-2 border border-[#f2d29b]/30 text-[#f2d29b] text-xs rounded-lg hover:bg-[#f2d29b]/10 transition-colors">Ver ficha</button>
+                    <button onClick={() => goTab('agenda')}
+                      className="flex-1 py-2 bg-[#f2d29b] text-[#0d0b09] text-xs font-semibold rounded-lg hover:bg-[#f7ddab] transition-colors">Nueva cita</button>
+                    <button onClick={() => goTab('agenda')} className="flex-1 py-2 border border-[#f2d29b]/30 text-[#f2d29b] text-xs rounded-lg hover:bg-[#f2d29b]/10 transition-colors">Ver agenda</button>
                   </div>
                 </div>
                     );
