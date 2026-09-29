@@ -1304,7 +1304,7 @@ export function AdminDashboard() {
 
   // ── Estudio: servidor con fallback a mocks ──
   const [designPage, setDesignPage] = useState(1);
-  const serverCatsQuery = useServerCategories();
+  const serverCatsQuery = useServerCategories(verified);
   const onlineCats = serverCatsQuery.data !== undefined;
   const effCategories = onlineCats
     ? (serverCatsQuery.data ?? []).map(c => ({
@@ -1313,7 +1313,7 @@ export function AdminDashboard() {
       }))
     : categories.map(c => ({ ...c, design_count: designs.filter(d => d.category === c.id).length }));
   const catSlugById = new Map((serverCatsQuery.data ?? []).map(c => [c.id, c.slug] as const));
-  const serverDesignsQuery = useServerDesigns(designPage, searchDesign, selectedCat);
+  const serverDesignsQuery = useServerDesigns(designPage, searchDesign, selectedCat, 6, false, verified);
   const onlineDesigns = serverDesignsQuery.data !== undefined;
   const mapDesign = (d: Design): MockDesign => ({
     id: d.id,
@@ -1569,10 +1569,10 @@ export function AdminDashboard() {
   const [addApptModal, setAddApptModal] = useState(false);
   const [newAppt, setNewAppt] = useState({ client_id: '', design_id: '', date: todayStr, time: '10:00', notes: '' });
   const [apptError, setApptError] = useState('');
-  const dayApptsQuery = useServerAppointments(agendaDay);
+  const dayApptsQuery = useServerAppointments(agendaDay, '', verified);
   const onlineAgenda = dayApptsQuery.data !== undefined;
-  const monthApptsQuery = useServerAppointments('');
-  const todayApptsQuery = useServerAppointments(todayStr);
+  const monthApptsQuery = useServerAppointments('', '', verified);
+  const todayApptsQuery = useServerAppointments(todayStr, '', verified);
   const onlineToday = todayApptsQuery.data !== undefined;
   const todayAppts = todayApptsQuery.data?.items ?? [];
   // Saludo real: nombre de sesión + fecha de hoy + resumen de citas de hoy.
@@ -1753,9 +1753,9 @@ export function AdminDashboard() {
     in_progress: { to: 'completed', label: 'Completar' },
   };
   const allClientsQuery = useServerClients(1, '', 100);
-  const allDesignsQuery = useServerDesigns(1, '', 'all', 100);
+  const allDesignsQuery = useServerDesigns(1, '', 'all', 100, false, verified);
   // Diseños marcados del mes (servidor). Offline: se filtran del estado local.
-  const monthlyDesignsQuery = useServerDesigns(1, '', 'all', 100, true);
+  const monthlyDesignsQuery = useServerDesigns(1, '', 'all', 100, true, verified);
   const onlineMonthly = monthlyDesignsQuery.data !== undefined;
   const monthlyDesigns: MockDesign[] = onlineMonthly
     ? (monthlyDesignsQuery.data?.items.map(mapDesign) ?? [])

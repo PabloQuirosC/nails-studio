@@ -25,13 +25,17 @@ class _RefreshIn(BaseModel):
 
 
 def _cookie_params(max_age: int) -> dict:
-    return {
+    params = {
         "httponly": True,
         "secure": settings.is_prod,
         "samesite": "none" if settings.is_prod else "lax",
         "path": "/",
         "max_age": max_age,
     }
+    if settings.is_prod:
+        # Compartir cookie entre subdominios de Vercel (ej: nails-studio-gray.vercel.app ↔ nails-studio-89kk.vercel.app)
+        params["domain"] = ".vercel.app"
+    return params
 
 
 def _audit(db, *, username: str, user_id: int | None, success: bool, request: Request) -> None:
@@ -86,8 +90,8 @@ def refresh(body: _RefreshIn, request: Request, response: Response, db: Session 
         result = auth_service.refresh(db, raw)
     except TokenInvalid as exc:
         # No se re-emite cookie: el front debe matar sesión local ante este 401.
-        response.delete_cookie(ACCESS_COOKIE, path="/")
-        response.delete_cookie(REFRESH_COOKIE, path="/")
+        for name in (ACCESS_COOKIE, REFRESH_COOKIE):
+            response.delete_cookie(name, **_delete_cookie_params())
         raise HTTPException(status_code=401, detail=str(exc)) from exc
     response.set_cookie(ACCESS_COOKIE, result["access_token"], **_cookie_params(result["expires_in"]))
     response.set_cookie(REFRESH_COOKIE, result["refresh_token"],
@@ -95,11 +99,18 @@ def refresh(body: _RefreshIn, request: Request, response: Response, db: Session 
     return {"access_token": result["access_token"], "expires_in": result["expires_in"]}
 
 
+def _delete_cookie_params() -> dict:
+    params = {"path": "/"}
+    if settings.is_prod:
+        params["domain"] = ".vercel.app"
+    return params
+
+
 @router.post("/logout", response_model=schemas.Message)
 def logout(request: Request, response: Response, db: Session = Depends(get_db)):
     auth_service.logout(db, request.cookies.get(REFRESH_COOKIE))
     for name in (ACCESS_COOKIE, REFRESH_COOKIE):
-        response.delete_cookie(name, path="/")
+        response.delete_cookie(name, **_delete_cookie_params())
     return {"detail": "Sesión cerrada"}
 
 
