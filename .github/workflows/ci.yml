@@ -104,7 +104,6 @@ jobs:
           vercel-project-id: prj_cbqTj2EmP0xavPoCbpicJ6pgmBwp
           github-token: ${{ secrets.GITHUB_TOKEN }}
           vercel-args: '--prod=false'
-          working-directory: ./frontend
 
   deploy-production:
     name: Deploy Production
@@ -122,4 +121,3 @@ jobs:
           vercel-org-id: team_LrKoM6PPlwEcykAfcRVZFEGe
           vercel-project-id: prj_cbqTj2EmP0xavPoCbpicJ6pgmBwp
           vercel-args: '--prod=true'
-          working-directory: ./frontend

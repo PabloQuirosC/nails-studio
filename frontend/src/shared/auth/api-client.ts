@@ -8,7 +8,9 @@ import { hideLoading, showLoading } from '../loading/loading-store';
 
 // En Vercel con rewrites, VITE_API_URL debe estar VACÍO para usar rutas relativas.
 // En local, el proxy de Vite maneja /api → http://127.0.0.1:8000
-const API_URL = (import.meta.env.VITE_API_URL as string | undefined ?? '').replace(/\/$/, '');
+const API_URL = import.meta.env.PROD
+  ? ''
+  : (import.meta.env.VITE_API_URL as string | undefined ?? '').replace(/\/$/, '');
 
 let memoryToken: string | null = null;
 export function setToken(t: string | null): void { memoryToken = t; }
