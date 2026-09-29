@@ -72,17 +72,19 @@ interface Page<T> { items: T[]; total: number; }
 const PAGE = 6;
 
 // ─── Catálogo ───
-export function useServerCategories() {
+export function useServerCategories(enabled = true) {
   return useQuery({
     queryKey: ['studio', 'categories'],
     queryFn: () => apiFetch<Category[]>('/api/v1/categories', { message: 'Cargando categorías…', background: true }),
     retry: 1,
     staleTime: 60_000,
     refetchInterval: LIVE_REFRESH_MS,
+    enabled,
   });
 }
 
-export function useServerDesigns(page: number, q: string, category: string, limit = PAGE, monthlyOnly = false) {
+export function useServerDesigns(page: number, q: string, category: string, limit = PAGE,
+                                 monthlyOnly = false, enabled = true) {
   const cat = category && category !== 'all' ? `&category=${encodeURIComponent(category)}` : '';
   const mon = monthlyOnly ? '&monthly_only=true' : '';
   return useQuery({
@@ -95,6 +97,7 @@ export function useServerDesigns(page: number, q: string, category: string, limi
     retry: 1,
     staleTime: 30_000,
     refetchInterval: LIVE_REFRESH_MS,
+    enabled,
   });
 }
 
@@ -177,7 +180,7 @@ export function useUpdateCategory() {
 }
 
 // ─── Agenda ───
-export function useServerAppointments(day = '', status = '') {
+export function useServerAppointments(day = '', status = '', enabled = true) {
   return useQuery({
     queryKey: ['studio', 'appointments', day, status],
     queryFn: () =>
@@ -188,6 +191,7 @@ export function useServerAppointments(day = '', status = '') {
     retry: 1,
     staleTime: 15_000,
     refetchInterval: LIVE_REFRESH_MS,
+    enabled,
   });
 }
 
