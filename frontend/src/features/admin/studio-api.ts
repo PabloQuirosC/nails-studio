@@ -32,6 +32,7 @@ export interface Design {
   occasion: string | null;
   complexity: string | null;
   active: boolean;
+  is_monthly: boolean;
 }
 
 export interface Appointment {
@@ -81,13 +82,14 @@ export function useServerCategories() {
   });
 }
 
-export function useServerDesigns(page: number, q: string, category: string, limit = PAGE) {
+export function useServerDesigns(page: number, q: string, category: string, limit = PAGE, monthlyOnly = false) {
   const cat = category && category !== 'all' ? `&category=${encodeURIComponent(category)}` : '';
+  const mon = monthlyOnly ? '&monthly_only=true' : '';
   return useQuery({
-    queryKey: ['studio', 'designs', page, q.trim().toLowerCase(), category, limit],
+    queryKey: ['studio', 'designs', page, q.trim().toLowerCase(), category, limit, monthlyOnly],
     queryFn: () =>
       apiFetch<Page<Design>>(
-        `/api/v1/designs?offset=${(page - 1) * limit}&limit=${limit}&q=${encodeURIComponent(q.trim())}${cat}`,
+        `/api/v1/designs?offset=${(page - 1) * limit}&limit=${limit}&q=${encodeURIComponent(q.trim())}${cat}${mon}`,
         { message: 'Cargando diseños…', background: true },
       ),
     retry: 1,

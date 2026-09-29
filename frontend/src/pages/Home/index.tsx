@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { ArrowRight, ArrowUpRight, Star, Sparkle, Clock, MapPin, PenLine } from 'lucide-react';
 import { DESIGNS, TESTIMONIALS, OCCASIONS } from '../../data';
-import { usePublicPosts, useSubmitTestimonio } from '../../features/catalog/public-api';
+import { useMonthlyDesigns, usePublicCategories, usePublicPosts, useSubmitTestimonio } from '../../features/catalog/public-api';
 import { useContactInfo } from '../../features/contact/contact-api';
 import { isOpenLegacy, isOpenNow } from '../../features/contact/open-hours';
 import { resolveImageUrl } from '../../shared/images';
@@ -73,7 +73,22 @@ function SectionHead({ kicker, title }: { kicker: string; title: string }) {
 
 export function Home() {
   const open = useIsOpen();
-  const trending = DESIGNS.slice(0, 8);
+  // Diseños del mes: marcados desde Admin → Catálogo ★. Sin servidor o sin
+  // marcados, se muestran los primeros 8 locales (comportamiento anterior).
+  const monthlyQuery = useMonthlyDesigns();
+  const catsQuery = usePublicCategories();
+  const trending = (() => {
+    const items = monthlyQuery.data?.items ?? [];
+    if (items.length === 0) return DESIGNS.slice(0, 8);
+    const slugById = new Map((catsQuery.data ?? []).map(c => [c.id, c.slug] as const));
+    return items.map(m => ({
+      id: m.id,
+      name: m.name,
+      category: slugById.get(m.category_id) ?? 'mano-alzada',
+      price: m.price,
+      image: resolveImageUrl(m.image_url) ?? '',
+    }));
+  })();
   const testiQuery = usePublicPosts('testimonio');
   const testiItems = testiQuery.data != null
     ? (testiQuery.data?.items ?? []).map(p => ({

@@ -23,6 +23,21 @@ export interface PublicDesign {
   tags: string[];
   occasion: string | null;
   complexity: string | null;
+  is_monthly: boolean;
+}
+
+/** Diseños marcados del mes (Admin → Catálogo ★). Vacío si no hay servidor o ninguno marcado. */
+export function useMonthlyDesigns() {
+  return useQuery({
+    queryKey: ['public', 'designs', 'monthly'],
+    queryFn: () =>
+      apiFetch<Page<PublicDesign>>(
+        '/api/v1/designs?offset=0&limit=8&monthly_only=true',
+        { message: 'Cargando diseños del mes…', background: true },
+      ),
+    retry: 1,
+    staleTime: 60_000,
+  });
 }
 
 interface Page<T> { items: T[]; total: number; }

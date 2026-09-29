@@ -44,6 +44,7 @@ class DesignCreate(BaseModel):
     tags: list[str] = Field(default_factory=list, max_length=12)
     occasion: str | None = Field(default=None, max_length=60)
     complexity: str | None = Field(default=None, max_length=60)
+    is_monthly: bool = False
 
 
 class DesignUpdate(BaseModel):
@@ -58,6 +59,7 @@ class DesignUpdate(BaseModel):
     occasion: str | None = Field(default=None, max_length=60)
     complexity: str | None = Field(default=None, max_length=60)
     active: bool | None = None
+    is_monthly: bool | None = None
 
 
 class DesignOut(BaseModel):
@@ -74,6 +76,7 @@ class DesignOut(BaseModel):
     occasion: str | None = None
     complexity: str | None = None
     active: bool
+    is_monthly: bool = False
 
 
 class DesignPage(BaseModel):

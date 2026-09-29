@@ -109,11 +109,14 @@ def create_design(db: Session, **fields) -> Design:
 
 
 def list_designs(db: Session, *, offset: int = 0, limit: int = 50, q: str = "",
-                 category: str = "", occasion: str = "", active_only: bool = True) -> tuple[list[Design], int]:
+                 category: str = "", occasion: str = "", active_only: bool = True,
+                 monthly_only: bool = False) -> tuple[list[Design], int]:
     stmt = select(Design).options(joinedload(Design.category))
     filters = []
     if active_only:
         filters.append(Design.active.is_(True))
+    if monthly_only:
+        filters.append(Design.is_monthly.is_(True))
     if q.strip():
         like = f"%{q.strip().lower()}%"
         filters.append(func.lower(Design.name).like(like))
