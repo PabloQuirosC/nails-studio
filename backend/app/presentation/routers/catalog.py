@@ -70,9 +70,11 @@ designs = APIRouter(prefix="/designs", tags=["designs"])
 
 @designs.get("", response_model=s.DesignPage)
 def list_designs(offset: int = 0, limit: int = 50, q: str = "", category: str = "",
-                 occasion: str = "", active_only: bool = True, db: Session = Depends(get_db)):
+                 occasion: str = "", active_only: bool = True, monthly_only: bool = False,
+                 db: Session = Depends(get_db)):
     items, total = catalog_service.list_designs(
-        db, offset=offset, limit=limit, q=q, category=category, occasion=occasion, active_only=active_only)
+        db, offset=offset, limit=limit, q=q, category=category, occasion=occasion,
+        active_only=active_only, monthly_only=monthly_only)
     return {"items": items, "total": total}
 
 

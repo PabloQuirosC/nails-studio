@@ -51,5 +51,7 @@ class Design(Base):
     occasion: Mapped[str | None] = mapped_column(String(60))
     complexity: Mapped[str | None] = mapped_column(String(60))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Visible en Home → "Diseños del mes". Se marca desde Admin → Catálogo (★).
+    is_monthly: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     category: Mapped[Category] = relationship(back_populates="designs")

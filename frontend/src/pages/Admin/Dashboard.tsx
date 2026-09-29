@@ -90,6 +90,7 @@ import { CategoryIcon, CATEGORY_ICONS } from '../../shared/category-icons';
 const TABS = [
   { id: 'overview',  label: 'Resumen',   icon: BarChart2 },
   { id: 'catalog',   label: 'Catálogo',  icon: Package   },
+  { id: 'monthly',   label: 'Diseños del mes', icon: Sparkles },
   { id: 'agenda',    label: 'Agenda',    icon: Calendar  },
   { id: 'clients',   label: 'Clientas',  icon: Users     },
   { id: 'users',     label: 'Usuarios',  icon: Shield    },
@@ -105,6 +106,7 @@ const TABS = [
 const TAB_MODULE: Record<string, string[]> = {
   overview: [],
   catalog: ['catalogo.'],
+  monthly: ['catalogo.'],
   agenda: ['reservas.'],
   clients: ['clientas.'],
   users: ['usuarios.', 'roles.', 'permisos.'],
@@ -162,6 +164,8 @@ interface MockDesign {
   tags: string[];
   occasion: string;
   complexity: string;
+  /** Marcado del mes (Admin → Catálogo ★). Local cuando no hay servidor. */
+  monthly?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -180,7 +184,7 @@ export function AdminDashboard() {
     setTabState(valid);
     setSearchParams(valid === 'overview' ? {} : { tab: valid }, { replace: true });
   };
-  const [designs,     setDesigns]     = useState(DESIGNS);
+  const [designs,     setDesigns]     = useState<MockDesign[]>(DESIGNS);
   const [categories,  setCategories]  = useState(CATEGORIES);
   const [catalogSubtab, setCatalogSubtab] = useState<'designs' | 'categories'>('designs');
   const [searchCat,   setSearchCat]   = useState('');
@@ -1323,6 +1327,7 @@ export function AdminDashboard() {
     tags: d.tags ?? [],
     occasion: d.occasion ?? 'Diario',
     complexity: d.complexity ?? 'Express',
+    monthly: d.is_monthly ?? false,
   });
   const effDesigns: MockDesign[] = onlineDesigns
     ? (serverDesignsQuery.data?.items.map(mapDesign) ?? [])
@@ -1411,6 +1416,25 @@ export function AdminDashboard() {
     setDesigns(ds => ds.map(x => x.id === editDesignId
       ? { ...x, name: patch.name, price: patch.price, duration: patch.duration_min } : x));
     setEditDesignId(null);
+  };
+
+  // ★ Marca/quita un diseño de "Diseños del mes" (Home público). Online persiste
+  // en el servidor (PUT is_monthly); offline/sin servidor vive en estado local.
+  const toggleDesignMonthly = (id: number, value: boolean) => {
+    if (onlineDesigns) {
+      updateDesignMut.mutate(
+        { id, patch: { is_monthly: value } },
+        {
+          onError: (err) => {
+            if (isOffline(err)) {
+              setDesigns(ds => ds.map(x => x.id === id ? { ...x, monthly: value } : x));
+            }
+          },
+        },
+      );
+      return;
+    }
+    setDesigns(ds => ds.map(x => x.id === id ? { ...x, monthly: value } : x));
   };
 
   const openEditCategory = (slug: string) => {
@@ -1730,6 +1754,12 @@ export function AdminDashboard() {
   };
   const allClientsQuery = useServerClients(1, '', 100);
   const allDesignsQuery = useServerDesigns(1, '', 'all', 100);
+  // Diseños marcados del mes (servidor). Offline: se filtran del estado local.
+  const monthlyDesignsQuery = useServerDesigns(1, '', 'all', 100, true);
+  const onlineMonthly = monthlyDesignsQuery.data !== undefined;
+  const monthlyDesigns: MockDesign[] = onlineMonthly
+    ? (monthlyDesignsQuery.data?.items.map(mapDesign) ?? [])
+    : designs.filter(d => d.monthly);
   const clientNameById = new Map((allClientsQuery.data?.items ?? []).map(c => [c.id, c.name] as const));
   const designNameById = new Map((allDesignsQuery.data?.items ?? []).map(d => [d.id, d.name] as const));
 
@@ -1920,7 +1950,7 @@ export function AdminDashboard() {
         {/* Nav — scroll sin barra visible (responsive: mantiene overflow en pantallas bajas) */}
         <nav className="relative flex-1 overflow-y-auto overscroll-contain px-3 py-4 space-y-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {([
-            { section: 'Gestión', ids: ['overview', 'catalog', 'agenda'] },
+            { section: 'Gestión', ids: ['overview', 'catalog', 'monthly', 'agenda'] },
             { section: 'Personas', ids: ['clients', 'users'] },
             { section: 'Negocio', ids: ['giftcards', 'referidos', 'reviews', 'blog', 'nosotros', 'contacto'] },
           ] as const).map(group => (
@@ -1983,11 +2013,9 @@ export function AdminDashboard() {
             aria-hidden="true"
           />
           <aside
-            className="fixed top-0 left-0 z-50 lg:hidden w-72 max-w-[85vw] h-dvh h-[100dvh] flex flex-col border-r border-[#3a2f1e] overflow-hidden animate-slide-right"
+            className="fixed top-0 left-0 z-50 lg:hidden w-72 max-w-[85vw] h-[100vh] h-[100dvh] flex flex-col border-r border-[#3a2f1e] overflow-hidden animate-slide-right safe-top safe-bottom"
             style={{
               background: 'linear-gradient(180deg, #100c07 0%, #0d0b09 45%, #0a0806 100%)',
-              paddingTop: 'env(safe-area-inset-top)',
-              paddingBottom: 'env(safe-area-inset-bottom)',
             }}
             role="dialog"
             aria-label="Menú de navegación"
@@ -2021,7 +2049,7 @@ export function AdminDashboard() {
             {/* Nav — scroll con safe-area */}
             <nav className="relative flex-1 overflow-y-auto overscroll-contain px-3 py-4 space-y-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden pb-[calc(env(safe-area-inset-bottom)+1rem)]">
               {([
-                { section: 'Gestión', ids: ['overview', 'catalog', 'agenda'] },
+                { section: 'Gestión', ids: ['overview', 'catalog', 'monthly', 'agenda'] },
                 { section: 'Personas', ids: ['clients', 'users'] },
                 { section: 'Negocio', ids: ['giftcards', 'referidos', 'reviews', 'blog', 'nosotros', 'contacto'] },
               ] as const).map(group => (
@@ -2081,15 +2109,17 @@ export function AdminDashboard() {
         {/* Top bar - responsive */}
         <div className="flex items-center justify-between mb-8">
           <div className="lg:hidden w-10" />
-          <button
-            type="button"
-            aria-label="Abrir menú"
-            aria-expanded={mobileDrawerOpen}
-            className="lg:hidden w-10 h-10 flex items-center justify-center text-[#a29885] hover:text-[#faf7f0] active:scale-[0.97] transition-[transform,color] duration-150 rounded-xl hover:bg-white/[0.04]"
-            onClick={() => setMobileDrawerOpen(true)}
-          >
-            <Menu size={22} />
-          </button>
+          {!mobileDrawerOpen && (
+            <button
+              type="button"
+              aria-label="Abrir menú"
+              aria-expanded={mobileDrawerOpen}
+              className="lg:hidden w-10 h-10 flex items-center justify-center text-[#a29885] hover:text-[#faf7f0] active:scale-[0.97] transition-[transform,color] duration-150 rounded-xl hover:bg-white/[0.04]"
+              onClick={() => setMobileDrawerOpen(true)}
+            >
+              <Menu size={22} />
+            </button>
+          )}
           <h1 className="font-serif text-2xl text-[#faf7f0] flex-1 text-center lg:text-left">{TABS.find(t => t.id === tab)?.label}</h1>
           <div className="w-10 lg:w-auto" />
         </div>
@@ -2509,6 +2539,14 @@ export function AdminDashboard() {
                       <td className="py-3.5 px-5">
                         <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
                           <Can code="catalogo.update">
+                            <button
+                              title={d.monthly ? 'Quitar de Diseños del mes' : 'Destacar en Diseños del mes'}
+                              onClick={() => toggleDesignMonthly(d.id, !d.monthly)}
+                              className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all ${d.monthly ? 'text-[#f2d29b] border-[#f2d29b]/40 bg-[#f2d29b]/10' : 'border-transparent text-[#b3a893] hover:text-[#f2d29b] hover:border-[#f2d29b]/30 hover:bg-[#f2d29b]/10'}`}>
+                              <Star size={14} className={d.monthly ? 'fill-[#f2d29b]' : ''} />
+                            </button>
+                          </Can>
+                          <Can code="catalogo.update">
                             <button title="Editar" onClick={() => openEditDesign(d.id)} className="w-8 h-8 flex items-center justify-center rounded-lg border border-transparent text-[#b3a893] hover:text-[#f2d29b] hover:border-[#f2d29b]/30 hover:bg-[#f2d29b]/10 transition-all"><Edit3 size={14} /></button>
                           </Can>
                           <Can code="catalogo.delete">
@@ -2623,6 +2661,86 @@ export function AdminDashboard() {
                   </div>
                 );
                 })()}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ════════════════════════════════════
+            DISEÑOS DEL MES
+        ════════════════════════════════════ */}
+        {tab === 'monthly' && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <p className="font-mono text-[#f2d29b] text-[10px] tracking-[0.25em] uppercase">Diseños del mes</p>
+                <h2 className="font-serif text-xl text-[#faf7f0] mt-0.5">Lo que ve el Home público</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                {onlineMonthly ? (
+                  <span className="font-mono text-[10px] uppercase tracking-widest px-2.5 py-2 rounded-full bg-[#8aab8a]/10 text-[#8aab8a] border border-[#8aab8a]/25">● Servidor</span>
+                ) : (
+                  <span className="font-mono text-[10px] uppercase tracking-widest px-2.5 py-2 rounded-full bg-[#332a1d] text-[#b3a893] border border-[#403521]">○ Local</span>
+                )}
+                <Can code="catalogo.update">
+                  <button onClick={() => goTab('catalog')}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#f2d29b] text-[#0d0b09] text-sm font-semibold rounded-xl hover:bg-[#f7ddab] shadow-[0_4px_20px_rgba(242,210,155,0.25)] transition-all">
+                    <Star size={14} /> Marcar en Catálogo
+                  </button>
+                </Can>
+              </div>
+            </div>
+
+            {/* ── Mini KPIs ── */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { label: 'Diseños destacados', value: String(monthlyDesigns.length), sub: 'visibles en el Home' },
+                { label: 'Precio promedio', value: monthlyDesigns.length ? `₡${Math.round(monthlyDesigns.reduce((a, d) => a + d.price, 0) / monthlyDesigns.length).toLocaleString()}` : '₡0', sub: 'por servicio' },
+                { label: 'Duración prom.', value: monthlyDesigns.length ? `${Math.round(monthlyDesigns.reduce((a, d) => a + d.duration, 0) / monthlyDesigns.length)} min` : '0 min', sub: 'por cita' },
+                { label: 'Categorías', value: String(new Set(monthlyDesigns.map(d => d.category)).size), sub: 'representadas' },
+              ].map(k => (
+                <div key={k.label} className="bg-[#14110c] border border-[#403521] rounded-2xl px-5 py-4">
+                  <p className="text-[#b3a893] text-[11px] font-mono uppercase tracking-widest">{k.label}</p>
+                  <p className="font-serif text-2xl text-[#faf7f0] mt-1">{k.value}</p>
+                  <p className="text-[#f2d29b]/80 text-xs mt-0.5">{k.sub}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Grid de diseños del mes ── */}
+            {monthlyDesigns.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {monthlyDesigns.map(d => (
+                  <div key={d.id} className="group relative bg-[#14110c] border border-[#f2d29b]/25 rounded-2xl overflow-hidden">
+                    <div className="relative h-44 overflow-hidden">
+                      <img src={d.image} alt={d.name} loading="lazy" className="w-full h-full object-cover" />
+                      <span className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-mono uppercase tracking-wider text-[#060505] font-medium"
+                        style={{ background: 'linear-gradient(135deg, #f2d29b, #d4613a)' }}>
+                        <Star size={10} className="fill-[#060505]" /> Del mes
+                      </span>
+                    </div>
+                    <div className="p-4">
+                      <p className="font-serif text-[#faf7f0] leading-tight truncate">{d.name}</p>
+                      <p className="text-[#f2d29b] font-mono text-xs mt-1">desde ₡{d.price.toLocaleString()}</p>
+                      <Can code="catalogo.update">
+                        <button onClick={() => toggleDesignMonthly(d.id, false)}
+                          className="mt-3 w-full py-2 rounded-xl border border-[#403521] text-[#b3a893] hover:text-[#e08a6d] hover:border-[#d4613a]/30 hover:bg-[#d4613a]/10 text-xs transition-all">
+                          Quitar destacado
+                        </button>
+                      </Can>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-[#14110c] border border-[#403521] rounded-2xl py-14 text-center px-6">
+                <Star size={28} className="mx-auto text-[#403521] mb-3" />
+                <p className="font-serif text-[#faf7f0] text-lg">Nada destacado este mes</p>
+                <p className="text-[#b3a893] text-xs mt-1">Marca diseños con la estrella ★ en el tab Catálogo y aparecerán aquí y en el Home.</p>
+                <button onClick={() => goTab('catalog')}
+                  className="mt-4 px-4 py-2 bg-[#f2d29b] text-[#0d0b09] text-xs font-semibold rounded-lg hover:bg-[#f7ddab] transition-colors">
+                  Ir a Catálogo
+                </button>
               </div>
             )}
           </div>

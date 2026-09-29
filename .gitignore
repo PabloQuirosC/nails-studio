@@ -21,3 +21,8 @@ opencode/
 # Tooling local de IA (no necesario en git ni en Vercel)
 .opencode/
 opencode.json
+
+# Vercel CLI local (contiene orgId/projectId)
+.vercel
+.vercel
+.env*
