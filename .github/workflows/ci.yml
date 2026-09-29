@@ -100,8 +100,8 @@ jobs:
         uses: amondnet/vercel-action@v42
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-org-id: team_LrKoM6PPlwEcykAfcRVZFEGe
+          vercel-project-id: prj_cbqTj2EmP0xavPoCbpicJ6pgmBwp
           github-token: ${{ secrets.GITHUB_TOKEN }}
           vercel-args: '--prod=false'
           working-directory: ./frontend
@@ -119,7 +119,7 @@ jobs:
         uses: amondnet/vercel-action@v42
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-org-id: team_LrKoM6PPlwEcykAfcRVZFEGe
+          vercel-project-id: prj_cbqTj2EmP0xavPoCbpicJ6pgmBwp
           vercel-args: '--prod=true'
           working-directory: ./frontend
