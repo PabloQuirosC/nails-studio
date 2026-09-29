@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, dev]
   pull_request:
     branches: [main]
 
@@ -61,6 +61,31 @@ jobs:
           name: dist
           path: frontend/dist
           retention-days: 7
+
+  auto-pr:
+    name: Auto PR to main
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Open PR to main if missing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          OPEN=$(gh pr list --head "$BRANCH" --base main --state open --json number --jq 'length')
+          if [ "$OPEN" -eq 0 ]; then
+            gh pr create --base main --head "$BRANCH" \
+              --title "Auto PR: $BRANCH → main" \
+              --body "PR automático creado por CI tras push a \`$BRANCH\`."
+          else
+            echo "Ya existe un PR abierto de $BRANCH a main."
+          fi
 
   deploy-preview:
     name: Deploy Preview
