@@ -3,7 +3,6 @@ import os
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
 
@@ -20,8 +19,11 @@ def _ensure() -> None:
     url = settings.database_url
     connect_args = {"sslmode": "require"} if "sslmode" not in url else {}
     if os.getenv("VERCEL", "").lower() in ("1", "true"):
-        # Serverless: sin pool persistente (el pooler Supabase lo absorbe).
-        _engine = create_engine(url, poolclass=NullPool, connect_args=connect_args)
+        # Vercel puede lanzar muchas rutas a la vez; limita conexiones por instancia.
+        _engine = create_engine(
+            url, pool_size=1, max_overflow=2, pool_timeout=10,
+            pool_pre_ping=True, connect_args=connect_args,
+        )
     else:
         _engine = create_engine(url, pool_size=5, max_overflow=10, pool_pre_ping=True, connect_args=connect_args)
     _SessionLocal = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)
