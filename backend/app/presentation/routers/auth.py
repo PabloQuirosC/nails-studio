@@ -103,7 +103,8 @@ def _delete_cookie_params(domain: str | None = None) -> dict:
 
 
 def _delete_auth_cookies(response: Response) -> None:
-    _delete_auth_cookies(response)
+    for name in (ACCESS_COOKIE, REFRESH_COOKIE):
+        response.delete_cookie(name, **_delete_cookie_params())
         if settings.is_prod:
             response.delete_cookie(name, **_delete_cookie_params(".vercel.app"))
 
@@ -111,8 +112,7 @@ def _delete_auth_cookies(response: Response) -> None:
 @router.post("/logout", response_model=schemas.Message)
 def logout(request: Request, response: Response, db: Session = Depends(get_db)):
     auth_service.logout(db, request.cookies.get(REFRESH_COOKIE))
-    for name in (ACCESS_COOKIE, REFRESH_COOKIE):
-        response.delete_cookie(name, **_delete_cookie_params())
+    _delete_auth_cookies(response)
     return {"detail": "Sesión cerrada"}
 
 
