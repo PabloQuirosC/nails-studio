@@ -2,6 +2,7 @@
 import os
 
 from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
@@ -16,12 +17,15 @@ def _ensure() -> None:
         return
     if not settings.database_url:
         raise RuntimeError("DATABASE_URL no configurada (ver .env)")
-    url = settings.database_url
+    database_url = make_url(settings.database_url)
+    if database_url.host and database_url.host.endswith("pooler.supabase.com") and database_url.port == 5432:
+        database_url = database_url.set(port=6543)
+    url = database_url.render_as_string(hide_password=False)
     connect_args = {"sslmode": "require"} if "sslmode" not in url else {}
     if os.getenv("VERCEL", "").lower() in ("1", "true"):
         # Vercel puede lanzar muchas rutas a la vez; limita conexiones por instancia.
         _engine = create_engine(
-            url, pool_size=1, max_overflow=2, pool_timeout=10,
+            url, pool_size=1, max_overflow=0, pool_timeout=10,
             pool_pre_ping=True, connect_args=connect_args,
         )
     else:
