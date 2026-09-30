@@ -32,9 +32,6 @@ def _cookie_params(max_age: int) -> dict:
         "path": "/",
         "max_age": max_age,
     }
-    if settings.is_prod:
-        # Compartir cookie entre subdominios de Vercel (ej: nails-studio-gray.vercel.app ↔ nails-studio-89kk.vercel.app)
-        params["domain"] = ".vercel.app"
     return params
 
 
@@ -90,8 +87,7 @@ def refresh(body: _RefreshIn, request: Request, response: Response, db: Session 
         result = auth_service.refresh(db, raw)
     except TokenInvalid as exc:
         # No se re-emite cookie: el front debe matar sesión local ante este 401.
-        for name in (ACCESS_COOKIE, REFRESH_COOKIE):
-            response.delete_cookie(name, **_delete_cookie_params())
+        _delete_auth_cookies(response)
         raise HTTPException(status_code=401, detail=str(exc)) from exc
     response.set_cookie(ACCESS_COOKIE, result["access_token"], **_cookie_params(result["expires_in"]))
     response.set_cookie(REFRESH_COOKIE, result["refresh_token"],
@@ -99,11 +95,17 @@ def refresh(body: _RefreshIn, request: Request, response: Response, db: Session 
     return {"access_token": result["access_token"], "expires_in": result["expires_in"]}
 
 
-def _delete_cookie_params() -> dict:
+def _delete_cookie_params(domain: str | None = None) -> dict:
     params = {"path": "/"}
-    if settings.is_prod:
-        params["domain"] = ".vercel.app"
+    if domain:
+        params["domain"] = domain
     return params
+
+
+def _delete_auth_cookies(response: Response) -> None:
+    _delete_auth_cookies(response)
+        if settings.is_prod:
+            response.delete_cookie(name, **_delete_cookie_params(".vercel.app"))
 
 
 @router.post("/logout", response_model=schemas.Message)
