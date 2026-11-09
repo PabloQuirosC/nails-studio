@@ -1,10 +1,10 @@
 """Casos de uso de Contenido (blog + testimonios + nosotros). Lectura pública solo publicados."""
 import logging
-import re
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.logging import sanitize_log
 from app.core.exceptions import Conflict, NotFound
 from app.infrastructure.models.content import Post, PostCategory
 
@@ -59,9 +59,11 @@ def list_posts(db: Session, *, offset: int = 0, limit: int = 50, q: str = "",
     if kind:
         filters.append(Post.kind == kind)
     if category.strip():
-        filters.append(Post.category == category.strip())
+        safe_cat = sanitize_log(category.strip())
+        filters.append(Post.category == safe_cat)
     if q.strip():
-        like = f"%{q.strip().lower()}%"
+        safe_q = sanitize_log(q.strip())
+        like = f"%{safe_q.lower()}%"
         filters.append(func.lower(Post.title).like(like))
     base = select(Post).where(*filters) if filters else select(Post)
     total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
@@ -74,11 +76,12 @@ def create_post(db: Session, **fields) -> Post:
         raise Conflict("kind inválido (articulo|testimonio|nosotros)")
     if "image_url" in fields:
         fields["image_url"] = _require_http_url(fields["image_url"])
-    base = _slugify(fields["title"])
+    safe_title = sanitize_log(fields["title"])
+    base = _slugify(safe_title)
     slug, i = base, 2
     while db.scalar(select(Post).where(Post.slug == slug)):
         slug, i = f"{base}-{i}", i + 1
-    post = Post(slug=slug, **fields)
+    post = Post(slug=slug, title=safe_title, **fields)
     db.add(post)
     db.commit()
     db.refresh(post)
@@ -90,8 +93,6 @@ def update_post(db: Session, post_id: int, **fields) -> Post:
     post = _get_or_404(db, post_id)
     if fields.get("kind") is not None and fields["kind"] not in KINDS:
         raise Conflict("kind inválido (articulo|testimonio|nosotros)")
-    # Se aplica todo lo recibido, incluido None (= vaciar el campo).
-    # El router usa exclude_unset: lo no enviado no llega aquí.
     if "image_url" in fields:
         fields["image_url"] = _require_http_url(fields["image_url"])
     for key, value in fields.items():
@@ -120,7 +121,7 @@ def list_categories(db: Session) -> list[PostCategory]:
 
 
 def create_category(db: Session, *, name: str) -> PostCategory:
-    clean = name.strip()
+    clean = sanitize_log(name.strip())
     if len(clean) < 2:
         raise Conflict("El nombre necesita mínimo 2 caracteres")
     if db.scalar(select(PostCategory).where(PostCategory.name == clean)):
@@ -141,7 +142,7 @@ def update_category(db: Session, category_id: int, *, name: str) -> PostCategory
     cat = db.get(PostCategory, category_id)
     if cat is None:
         raise NotFound("Categoría no encontrada")
-    clean = name.strip()
+    clean = sanitize_log(name.strip())
     if len(clean) < 2:
         raise Conflict("El nombre necesita mínimo 2 caracteres")
     other = db.scalar(select(PostCategory).where(PostCategory.name == clean))
@@ -154,7 +155,6 @@ def update_category(db: Session, category_id: int, *, name: str) -> PostCategory
         Post.__table__.update().where(Post.category == old_name).values(category=clean)
     )
     db.commit()
-    db.refresh(cat)
     logger.info("Categoría de blog actualizada: %s -> %s", old_name, clean)
     return cat
 

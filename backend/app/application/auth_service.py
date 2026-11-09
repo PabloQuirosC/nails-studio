@@ -1,14 +1,17 @@
 """Casos de uso de autenticación (Application). Corrige dulce: refresh rotativo + logout real."""
 import hashlib
 import logging
+import re
 from datetime import timezone
 
 from sqlalchemy import select
+
 from sqlalchemy.orm import Session
 
 from app.core import tokens
 from app.core.exceptions import InactiveUser, InvalidCredentials, NoPermissions, TokenInvalid
 from app.core.security import dummy_verify, hash_password, verify_password
+from app.core.jwks_client import JWKSClient, JWKS_SCHEMES_ALLOWED
 from app.infrastructure.db.base import UserStatus
 from app.infrastructure.models.rbac import RefreshToken, User
 from app.infrastructure.repositories import rbac_repo

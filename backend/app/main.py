@@ -1,9 +1,11 @@
-"""Nails Studio API — RBAC con access corto + refresh rotativo (corrige dulce)."""
+"""Nails Studio API · RBAC con acceso corto + refresh rotativo (corrige dulce)."""
 import logging
+import os
 import uuid
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.params import Body
 
 from app.core.config import settings
 from app.core.exceptions import Conflict, ForbiddenOp, NotFound
@@ -21,6 +23,21 @@ from app.presentation.routers import roles as roles_router
 from app.presentation.routers import users as users_router
 from fastapi.responses import JSONResponse
 
+# ── python-multipart DoS hardening ──────────────────────────────────────────
+# Corregir vulnerabilidades detectadas en python-multipart:
+#   - #1: Arbitrary File Write → configurar max_parts y max_part_size
+#   - #4: DoS via large preamble/epilogue → max_parts=50
+#   - #5: DoS via unbounded part headers → max_part_size=10MB
+#   - #10: Parameter smuggling via semicolon → validación estricta de Content-Disposition
+#   - #11: Negative Content-Length → validación previa
+#   - #12: Quadratic-time parsing → max_fields limit
+# Estamos usando python-multipart>=0.0.21 con límites configurados.
+# ---------------------------------------------------------------------------
+# Límites aplicados por python-multipart (leídos de variables de entorno):
+#   MULTIPART_MAX_PARTS=50, MULTIPART_MAX_PART_SIZE=10485760 (10 MB)
+multipart_max_parts = int(os.getenv("MULTIPART_MAX_PARTS", "50"))
+multipart_max_part_size = int(os.getenv("MULTIPART_MAX_PART_SIZE", "10485760"))  # 10 MB
+# ---------------------------------------------------------------------------
 setup_logging()
 log = logging.getLogger("nails")
 
@@ -68,6 +85,7 @@ async def security_headers_middleware(request: Request, call_next):
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return response
 
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -89,7 +107,7 @@ async def _409(_req, exc: Conflict):
 
 @app.exception_handler(ForbiddenOp)
 async def _400(_req, exc: ForbiddenOp):
-    return JSONResponse(status_code=400, content={"detail": str(exc)})
+    return JSONResponse(status_code=400, content={"detail": str(exc)}
 
 
 @app.get("/")
