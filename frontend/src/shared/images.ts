@@ -27,3 +27,15 @@ export function resolveImageUrl(url: string | null | undefined): string | null {
   if (!id) return raw;
   return `https://drive.google.com/thumbnail?id=${id}&sz=w1200`;
 }
+
+export function getSafeImageUrl(url: string | null | undefined): string {
+  const resolved = resolveImageUrl(url);
+  if (!resolved) return '';
+  try {
+    const parsed = new URL(resolved, window.location.origin);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+    return parsed.href;
+  } catch {
+    return '';
+  }
+}
