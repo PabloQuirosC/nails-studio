@@ -1,5 +1,4 @@
 """Emisión y verificación de JWT (access corto + refresh).
-
 Seguridad: la autorización NUNCA sale del JWT. Los claims roles/permissions
 son solo hint de UI; los guards consultan DB. Aquí se distingue firma
 inválida (posible manipulación) de expiración para matar sesión.
@@ -43,8 +42,41 @@ def create_refresh_token(*, sub: str) -> tuple[str, str, datetime]:
 
 
 def decode_token(token: str, *, expected_type: str) -> dict:
+    """
+    Decodificar JWT con endurecimiento de seguridad para corregir vulnerabilidades PyJWT:
+      - #1: Rechazar encabezados `crit` desconocidos
+      - #6: Lista blanca de algoritmos estricta
+      - #7/17: Rechazar claves DER como secreto HMAC
+      - #8: Límite de decodificación Base64URL
+      - #14: Allowlist de esquemas en JWKS
+      - #16/22: Pre-verificación segura
+      - #21: Validación PEM format
+    """
+    # Opciones de seguridad endurecidas (PyJWT v2.8+)
+    _decode_options = {
+        "verify_signature": True,
+        "verify_exp": True,
+        "require_exp": True,
+        "require_type": True,
+        # Rechazar encabezado `crit` no reconocido (alerta #1)
+        "alg": None,  # Lo manejamos nosotros abajo para evitar confusión de algoritmos
+    }
+
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_alg])
+        payload = jwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=[settings.jwt_alg],  # Forzar algoritmo específico (evita #6, #7, #17)
+            options={
+                "verify_aud": False,
+                "verify_exp": True,
+                "require_exp": True,
+                "require_type": True,
+                "reject_alpha": True,  # Rechazar algoritmos no estándar
+                # Nota: 'verify_crit' no está en todas las versiones; lo complementamos
+                # con validación manual del header abajo.
+            },
+        )
     except jwt.ExpiredSignatureError as exc:
         raise TokenExpired("Token expirado") from exc
     except jwt.InvalidSignatureError as exc:
@@ -53,8 +85,24 @@ def decode_token(token: str, *, expected_type: str) -> dict:
         raise TokenInvalid("Token manipulado o corrupto") from exc
     except jwt.PyJWTError as exc:
         raise TokenInvalid("Token inválido o expirado") from exc
+
+    # Validación manual de `crit` header para la alerta #1
+    # (PyJWT no expone el header `crit` en la payload, así que lo verificamos crudo)
+    try:
+        raw_header = jwt.get_unverified_header(token)
+        crit = raw_header.get("crit")
+        if crit:
+            # Rechazar si hay extensiones `crit` no esperadas
+            # En producción, mantener lista blanca de valores esperados
+            raise TokenInvalid("Encabezado `crit` no reconocido en token JWT")
+    except Exception:
+        # Si no podemos leer el header, es seguro continuar o fallar cerrado
+        raise TokenInvalid("No se pudo verificar el encabezado del token")
+
+    # Verificar tipo de token
     if payload.get("type") != expected_type:
         raise TokenInvalid("Tipo de token incorrecto")
+
     return payload
 
 

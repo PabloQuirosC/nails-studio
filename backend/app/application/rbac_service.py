@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.logging import sanitize_log
 from app.core.exceptions import Conflict, ForbiddenOp, NotFound
 from app.core.security import hash_password
 from app.infrastructure.db.base import UserStatus
@@ -43,8 +44,8 @@ def _ensure_not_last_admin(db: Session, user_id: int) -> None:
 
 # ── Users ──
 def create_user(db: Session, *, username: str, email: str, full_name: str, password: str) -> User:
-    user = User(username=username.strip(), email=email.strip().lower(),
-                full_name=full_name.strip(), password_hash=hash_password(password))
+    user = User(username=sanitize_log(username.strip()), email=email.strip().lower(),
+                full_name=sanitize_log(full_name.strip()), password_hash=hash_password(password))
     db.add(user)
     try:
         db.commit()
@@ -68,13 +69,15 @@ def list_users(
     if status is not None:
         filters.append(User.status == status)
     if q.strip():
-        like = f"%{q.strip().lower()}%"
+        safe_q = sanitize_log(q.strip())
+        like = f"%{safe_q.lower()}%"
         filters.append(func.lower(User.username).like(like) | func.lower(User.email).like(like))
     if role.strip():
+        safe_role = sanitize_log(role.strip().lower())
         filters.append(
             User.id.in_(
                 select(UserRole.user_id).join(Role, Role.id == UserRole.role_id)
-                .where(func.lower(Role.name) == role.strip().lower(), UserRole.active.is_(True))
+                .where(func.lower(Role.name) == safe_role, UserRole.active.is_(True))
             )
         )
     base = select(User)
@@ -134,10 +137,11 @@ def remove_role(db: Session, user_id: int, role_id: int) -> None:
 
 # ── Roles ──
 def create_role(db: Session, *, name: str, description: str | None) -> Role:
-    if db.scalar(select(Role).where(func.lower(Role.name) == name.strip().lower())):
+    safe_name = sanitize_log(name.strip())
+    if db.scalar(select(Role).where(func.lower(Role.name) == safe_name.lower())):
         logger.warning("Creación de rol rechazada por duplicado: %s", name)
         raise Conflict("Rol ya existe")
-    role = Role(name=name.strip(), description=description)
+    role = Role(name=safe_name, description=description)
     db.add(role)
     db.commit()
     db.refresh(role)

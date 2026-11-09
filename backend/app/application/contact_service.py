@@ -1,9 +1,16 @@
 """Casos de uso de Contacto: buzón público + datos editables (singleton id=1)."""
+import logging
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.logging import sanitize_log
 from app.core.exceptions import Conflict, NotFound
 from app.infrastructure.models.contact import ContactInfo, ContactMessage, ContactSocial
+
+logger = logging.getLogger(__name__)
+
+KINDS = ("articulo", "testimonio", "nosotros")
 
 
 def _require_http_url(url: str) -> str:
@@ -13,14 +20,23 @@ def _require_http_url(url: str) -> str:
     return clean
 
 
+def _slugify(text: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", text.lower().strip())
+    return slug.strip("-") or "post"
+
+
 def create_message(db: Session, *, name: str, email: str, phone: str | None, message: str) -> ContactMessage:
+    safe_name = sanitize_log(name.strip())
+    safe_email = sanitize_log(email.strip().lower())
+    safe_message = sanitize_log(message.strip())
     msg = ContactMessage(
-        name=name.strip(), email=email.strip().lower(),
-        phone=(phone or "").strip() or None, message=message.strip(),
+        name=safe_name, email=safe_email,
+        phone=(phone or "").strip() or None, message=safe_message,
     )
     db.add(msg)
     db.commit()
     db.refresh(msg)
+    logger.info("Nuevo mensaje de contacto de: %s", safe_name)
     return msg
 
 
@@ -84,7 +100,7 @@ def list_socials(db: Session) -> list[ContactSocial]:
 
 
 def create_social(db: Session, *, label: str, url: str, icon: str) -> ContactSocial:
-    social = ContactSocial(label=label.strip(), url=_require_http_url(url), icon=(icon or "web").strip().lower() or "web")
+    social = ContactSocial(label=sanitize_log(label.strip()), url=_require_http_url(url), icon=(icon or "web").strip().lower() or "web")
     db.add(social)
     db.commit()
     db.refresh(social)
@@ -99,7 +115,7 @@ def update_social(db: Session, social_id: int, **fields) -> ContactSocial:
         if value is not None and hasattr(social, key):
             if key == "url" and isinstance(value, str):
                 value = _require_http_url(value)
-            setattr(social, key, value.strip() if isinstance(value, str) else value)
+            setattr(social, key, sanitize_log(value.strip() if isinstance(value, str) else value))
     db.commit()
     db.refresh(social)
     return social

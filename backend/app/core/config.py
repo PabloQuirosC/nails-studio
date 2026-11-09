@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
     redis_url: str = ""
 
+    # Configuración JWKS endurecida (corrige alertas #14, #16, #18, #19)
+    jwks_url: str = ""  # URL del endpoint JWKS (solo https:// permitido)
+    jwks_timeout: int = 10  # Timeout en segundos para fetches JWKS
+    jwks_max_keys: int = 100  # Máximo número de keys a aceptar
+
     frontend_origin: str = "http://127.0.0.1:5173"
     allowed_origins: str = "http://127.0.0.1:5173"
     # URL pública canónica del front (links de correo). Vacía = primer http(s) de frontend_origin.

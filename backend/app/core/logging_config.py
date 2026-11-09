@@ -1,13 +1,15 @@
 """Logging estructurado: JSON por línea + rotación a archivo + request-id.
 
-Mejora futura aplicada: cuando el log crece, las líneas JSON permiten filtrar
+Mejoras futuras aplicadas: cuando el log crece, las líneas JSON permiten filtrar
 por nivel/logger/request-id, y el RotatingFileHandler evita discos llenos.
 En Vercel (filesystem read-only): solo consola.
+También incluye funciones de sanitización para prevenir inyección en logs (CWE-117).
 """
 import json
 import logging
 import logging.handlers
 import os
+import re
 from contextvars import ContextVar
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,6 +18,26 @@ request_id_ctx: ContextVar[str] = ContextVar("request_id", default="-")
 
 LOG_DIR = Path(__file__).resolve().parent.parent.parent / "logs"
 LOG_FILE = LOG_DIR / "nails.jsonl"
+
+
+def sanitize_log(value: str) -> str:
+    """Sanitizar datos para prevenir inyección en logs (CWE-117).
+
+    Escapa secuencias de formato de log y elimina caracteres de control.
+    Esto previene ataques donde datos user-provided en logs podrían
+    alterar la salida del log o inyectar entradas falsas.
+
+    - Reemplaza % por %% (logging usa %% para % literal)
+    - Elimina caracteres de control ASCII (0x00-0x1f, 0x7f)
+    - Mantiene la legibilidad para propósitos de depuración
+    """
+    if not isinstance(value, str):
+        value = str(value)
+    # Reemplazar % por %% (el sistema de logging usa %% para un % literal)
+    escaped = value.replace("%", "%%")
+    # Eliminar o reemplazar caracteres de control que podrían romper el log
+    cleaned = re.sub(r"[\x00-\x1f\x7f]", "", escaped)
+    return cleaned
 
 
 class RequestIdFilter(logging.Filter):
