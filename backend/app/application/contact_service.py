@@ -36,7 +36,7 @@ def create_message(db: Session, *, name: str, email: str, phone: str | None, mes
     db.add(msg)
     db.commit()
     db.refresh(msg)
-    logger.info("Nuevo mensaje de contacto de: %s", safe_name)
+    logger.info("Nuevo mensaje de contacto recibido")
     return msg
 
 

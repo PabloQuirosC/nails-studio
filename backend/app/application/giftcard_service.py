@@ -28,7 +28,7 @@ def _audit(db: Session, gc: GiftCard, actor: User | None, field: str,
         ))
         db.flush()
     except Exception as exc:
-        logger.warning("No se pudo auditar %s.%s: %s", gc.code, field, exc)
+        logger.warning("No se pudo auditar una gift card")
 
 
 def _gen_code(db: Session) -> str:
@@ -53,7 +53,7 @@ def create_gift_card(db: Session, *, amount: int, buyer: str, recipient: str | N
     db.add(gc)
     db.commit()
     db.refresh(gc)
-    logger.info("Gift card creada: %s (₡%s, comprador=%s, origen=%s)", gc.code, gc.amount, gc.buyer, source)
+    logger.info("Gift card creada")
     return gc
 
 
@@ -85,7 +85,7 @@ def set_used(db: Session, code: str, used: bool, actor: User | None = None) -> G
     gc.used_at = datetime.now(timezone.utc) if used else None
     db.commit()
     db.refresh(gc)
-    logger.info("Gift card %s: %s", gc.code, "canjeada" if used else "reactivada")
+    logger.info("Gift card actualizada")
     return gc
 
 
@@ -105,7 +105,7 @@ def update_gift_card(db: Session, code: str, actor: User | None = None, **fields
                 setattr(gc, key, clean)
     db.commit()
     db.refresh(gc)
-    logger.info("Gift card actualizada: %s (₡%s, comprador=%s)", gc.code, gc.amount, gc.buyer)
+    logger.info("Gift card actualizada")
     return gc
 
 
@@ -121,6 +121,6 @@ def delete_gift_card(db: Session, code: str) -> None:
     gc = db.scalar(select(GiftCard).where(GiftCard.code == code))
     if gc is None:
         raise NotFound("Gift card no encontrada")
-    logger.info("Gift card eliminada: %s (₡%s)", gc.code, gc.amount)
+    logger.info("Gift card eliminada")
     db.delete(gc)
     db.commit()

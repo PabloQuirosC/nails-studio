@@ -38,7 +38,7 @@ def _active_admin_ids(db: Session) -> set[int]:
 def _ensure_not_last_admin(db: Session, user_id: int) -> None:
     admins = _active_admin_ids(db)
     if user_id in admins and len(admins) <= 1:
-        logger.warning("Bloqueado: intento de dejar el sistema sin administradores (user_id=%s)", user_id)
+        logger.warning("Bloqueado: intento de dejar el sistema sin administradores")
         raise ForbiddenOp("No se puede dejar el sistema sin administradores")
 
 
@@ -51,12 +51,10 @@ def create_user(db: Session, *, username: str, email: str, full_name: str, passw
         db.commit()
     except IntegrityError as exc:
         db.rollback()
-        logger.warning("Creación de usuario rechazada por duplicado: %s / %s",
-                       sanitize_log(username), sanitize_log(email))
+        logger.warning("Creación de usuario rechazada por duplicado")
         raise Conflict("Usuario o correo ya existe") from exc
     db.refresh(user)
-    logger.info("Usuario creado: %s (id=%s, email=%s)",
-                sanitize_log(user.username), user.id, sanitize_log(user.email))
+    logger.info("Usuario creado")
     return user
 
 
@@ -99,17 +97,17 @@ def update_user(db: Session, user_id: int, **fields) -> User:
         db.commit()
     except IntegrityError as exc:
         db.rollback()
-        logger.warning("Actualización de usuario rechazada (id=%s): correo duplicado", user_id)
+        logger.warning("Actualización de usuario rechazada: correo duplicado")
         raise Conflict("Correo ya en uso") from exc
     db.refresh(user)
-    logger.info("Usuario actualizado: %s (id=%s)", sanitize_log(user.username), user.id)
+    logger.info("Usuario actualizado")
     return user
 
 
 def delete_user(db: Session, user_id: int) -> None:
     user = _get_or_404(db, User, user_id, "Usuario")
     _ensure_not_last_admin(db, user_id)
-    logger.info("Usuario eliminado: %s (id=%s)", sanitize_log(user.username), user.id)
+    logger.info("Usuario eliminado")
     db.delete(user)
     db.commit()
 
@@ -120,11 +118,9 @@ def assign_role(db: Session, user_id: int, role_id: int) -> None:
     if db.get(UserRole, (user_id, role_id)) is None:
         db.add(UserRole(user_id=user_id, role_id=role_id))
         db.commit()
-        logger.info("Rol asignado: %s -> %s (user_id=%s, role_id=%s)",
-                    sanitize_log(role.name), sanitize_log(user.username), user_id, role_id)
+        logger.info("Rol asignado")
     else:
-        logger.info("Rol ya asignado (sin cambios): %s -> %s",
-                    sanitize_log(role.name), sanitize_log(user.username))
+        logger.info("Rol ya asignado (sin cambios)")
 
 
 def remove_role(db: Session, user_id: int, role_id: int) -> None:
@@ -136,20 +132,20 @@ def remove_role(db: Session, user_id: int, role_id: int) -> None:
         _ensure_not_last_admin(db, user_id)
     db.delete(link)
     db.commit()
-    logger.info("Rol retirado: user_id=%s, role_id=%s", user_id, role_id)
+    logger.info("Rol retirado")
 
 
 # ── Roles ──
 def create_role(db: Session, *, name: str, description: str | None) -> Role:
     safe_name = sanitize_log(name.strip())
     if db.scalar(select(Role).where(func.lower(Role.name) == safe_name.lower())):
-        logger.warning("Creación de rol rechazada por duplicado: %s", name)
+        logger.warning("Creación de rol rechazada por duplicado")
         raise Conflict("Rol ya existe")
     role = Role(name=safe_name, description=description)
     db.add(role)
     db.commit()
     db.refresh(role)
-    logger.info("Rol creado: %s (id=%s)", sanitize_log(role.name), role.id)
+    logger.info("Rol creado")
     return role
 
 
@@ -160,17 +156,16 @@ def update_role(db: Session, role_id: int, **fields) -> Role:
             setattr(role, key, value)
     db.commit()
     db.refresh(role)
-    logger.info("Rol actualizado: %s (id=%s)", sanitize_log(role.name), role.id)
+    logger.info("Rol actualizado")
     return role
 
 
 def delete_role(db: Session, role_id: int) -> None:
     role = _get_or_404(db, Role, role_id, "Rol")
     if role.is_system:
-        logger.warning("Eliminación de rol del sistema bloqueada: %s (id=%s)",
-                       sanitize_log(role.name), role.id)
+        logger.warning("Eliminación de rol del sistema bloqueada")
         raise ForbiddenOp("No se puede eliminar un rol del sistema")
-    logger.info("Rol eliminado: %s (id=%s)", sanitize_log(role.name), role.id)
+    logger.info("Rol eliminado")
     db.delete(role)
     db.commit()
 
@@ -181,11 +176,9 @@ def grant_permission(db: Session, role_id: int, permission_id: int) -> None:
     if db.get(RolePermission, (role_id, permission_id)) is None:
         db.add(RolePermission(role_id=role_id, permission_id=permission_id))
         db.commit()
-        logger.info("Permiso asignado: %s -> %s (role_id=%s)",
-                    sanitize_log(perm.code), sanitize_log(role.name), role_id)
+        logger.info("Permiso asignado")
     else:
-        logger.info("Permiso ya asignado (sin cambios): %s -> %s",
-                    sanitize_log(perm.code), sanitize_log(role.name))
+        logger.info("Permiso ya asignado (sin cambios)")
 
 
 def revoke_permission(db: Session, role_id: int, permission_id: int) -> None:
@@ -194,4 +187,4 @@ def revoke_permission(db: Session, role_id: int, permission_id: int) -> None:
         raise NotFound("Asignación no encontrada")
     db.delete(link)
     db.commit()
-    logger.info("Permiso retirado: role_id=%s, permission_id=%s", role_id, permission_id)
+    logger.info("Permiso retirado")

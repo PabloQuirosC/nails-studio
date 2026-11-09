@@ -87,7 +87,7 @@ def create_post(db: Session, **fields) -> Post:
     db.add(post)
     db.commit()
     db.refresh(post)
-    logger.info("Post creado: %s (slug=%s, kind=%s)", post.title, slug, post.kind)
+    logger.info("Post creado")
     return post
 
 
@@ -102,13 +102,13 @@ def update_post(db: Session, post_id: int, **fields) -> Post:
             setattr(post, key, value)
     db.commit()
     db.refresh(post)
-    logger.info("Post actualizado: %s (id=%s)", post.title, post.id)
+    logger.info("Post actualizado")
     return post
 
 
 def delete_post(db: Session, post_id: int) -> None:
     post = _get_or_404(db, post_id)
-    logger.info("Post eliminado: %s (id=%s)", post.title, post.id)
+    logger.info("Post eliminado")
     db.delete(post)
     db.commit()
 
@@ -136,7 +136,7 @@ def create_category(db: Session, *, name: str) -> PostCategory:
     db.add(cat)
     db.commit()
     db.refresh(cat)
-    logger.info("Categoría de blog creada: %s", clean)
+    logger.info("Categoría de blog creada")
     return cat
 
 
@@ -157,7 +157,7 @@ def update_category(db: Session, category_id: int, *, name: str) -> PostCategory
         Post.__table__.update().where(Post.category == old_name).values(category=clean)
     )
     db.commit()
-    logger.info("Categoría de blog actualizada: %s -> %s", old_name, clean)
+    logger.info("Categoría de blog actualizada")
     return cat
 
 
@@ -174,4 +174,4 @@ def delete_category(db: Session, category_id: int) -> None:
         )
     db.delete(cat)
     db.commit()
-    logger.info("Categoría de blog eliminada: %s", cat.name)
+    logger.info("Categoría de blog eliminada")

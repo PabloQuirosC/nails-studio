@@ -54,19 +54,17 @@ def login(body: schemas.LoginIn, request: Request, response: Response, db: Sessi
     ip = rate_limit.client_ip(request)
     key = f"{ip}|{body.username.lower()}"
     if not rate_limit.check("login", key):
-        logger.warning("Login bloqueado por throttle: %s", sanitize_log(key))
+        logger.warning("Login bloqueado por throttle")
         raise HTTPException(status_code=429, detail="Demasiados intentos, espera un minuto")
     rate_limit.hit("login", key)
     try:
         result = auth_service.login(db, body.username, body.password)
     except NoPermissions as exc:
-        logger.warning("Login sin permisos: %s desde %s", sanitize_log(body.username),
-                       sanitize_log(request.client.host if request.client else "?"))
+        logger.warning("Login sin permisos")
         _audit(db, username=body.username, user_id=None, success=False, request=request)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc))
     except (InvalidCredentials, InactiveUser):
-        logger.warning("Login fallido: %s desde %s", sanitize_log(body.username),
-                       sanitize_log(request.client.host if request.client else "?"))
+        logger.warning("Login fallido")
         _audit(db, username=body.username, user_id=None, success=False, request=request)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

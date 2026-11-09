@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def _validate_icon(icon: str) -> None:
     if icon not in CATEGORY_ICON_KEYS:
-        logger.warning("Icono de categoría rechazado: %s", icon)
+        logger.warning("Icono de categoría rechazado")
         raise ValueError(f"Icono inválido. Válidos: {', '.join(CATEGORY_ICON_KEYS)}")
 
 
@@ -36,13 +36,13 @@ def create_category(db: Session, *, name: str, icon: str = "sparkles", color: st
     _validate_icon(icon)
     slug = _slugify(name)
     if db.scalar(select(Category).where(Category.slug == slug)):
-        logger.warning("Creación de categoría rechazada por duplicado: %s", name)
+        logger.warning("Creación de categoría rechazada por duplicado")
         raise Conflict("Categoría ya existe")
     cat = Category(slug=slug, name=name.strip(), icon=icon, color=color, description=description)
     db.add(cat)
     db.commit()
     db.refresh(cat)
-    logger.info("Categoría creada: %s (slug=%s, id=%s)", cat.name, slug, cat.id)
+    logger.info("Categoría creada")
     return cat
 
 
@@ -67,7 +67,7 @@ def update_category(db: Session, category_id: int, **fields) -> Category:
             setattr(cat, key, value)
     db.commit()
     db.refresh(cat)
-    logger.info("Categoría actualizada: %s (id=%s)", cat.name, cat.id)
+    logger.info("Categoría actualizada")
     return cat
 
 
@@ -75,9 +75,9 @@ def delete_category(db: Session, category_id: int) -> None:
     cat = _get_or_404(db, Category, category_id, "Categoría")
     n = db.scalar(select(func.count()).select_from(Design).where(Design.category_id == category_id)) or 0
     if n > 0:
-        logger.warning("Eliminación de categoría bloqueada: %s tiene %s diseños", cat.name, n)
+        logger.warning("Eliminación de categoría bloqueada")
         raise ForbiddenOp(f"No se puede eliminar: tiene {n} diseños asignados")
-    logger.info("Categoría eliminada: %s (id=%s)", cat.name, cat.id)
+    logger.info("Categoría eliminada")
     db.delete(cat)
     db.commit()
 
@@ -104,7 +104,7 @@ def create_design(db: Session, **fields) -> Design:
         db.rollback()
         raise Conflict("No se pudo crear el diseño") from exc
     db.refresh(design)
-    logger.info("Diseño creado: %s (id=%s, categoría=%s, ₡%s)", design.name, design.id, design.category_id, design.price)
+    logger.info("Diseño creado")
     return design
 
 
@@ -141,12 +141,12 @@ def update_design(db: Session, design_id: int, **fields) -> Design:
     _validate_design(price=design.price, duration_min=design.duration_min, image_url=design.image_url)
     db.commit()
     db.refresh(design)
-    logger.info("Diseño actualizado: %s (id=%s)", design.name, design.id)
+    logger.info("Diseño actualizado")
     return design
 
 
 def delete_design(db: Session, design_id: int) -> None:
     design = _get_or_404(db, Design, design_id, "Diseño")
-    logger.info("Diseño eliminado: %s (id=%s)", design.name, design.id)
+    logger.info("Diseño eliminado")
     db.delete(design)
     db.commit()
