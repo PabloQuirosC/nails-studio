@@ -3,8 +3,6 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 
-// Vite config — https://vitejs.dev/config/
-// Desacoplado de Figma Make: build reproducible sin ./.figma/make/site.json
 export default defineConfig({
   base: '/',
   build: {
