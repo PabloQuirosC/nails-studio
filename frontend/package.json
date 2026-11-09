@@ -27,8 +27,10 @@
     "@types/react-dom": "~19.2.0",
     "@vitejs/plugin-react": "^6.0.0",
     "oxfmt": "^0.2.0",
+    "source-map-js": "^2.1.2",  # Upgraded to fix DOS vulnerability #41
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0",
+    "tinypool": "^2.0.0",  # Upgraded to fix prototype pollution #39, #40
     "vite": "^8.0.5",
     "vitest": "^3.2.7"
   }
