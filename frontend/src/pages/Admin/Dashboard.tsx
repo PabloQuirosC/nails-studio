@@ -2525,7 +2525,7 @@ export function AdminDashboard() {
                     <tr key={d.id} className="border-b border-[#403521]/60 last:border-0 hover:bg-[#f2d29b]/[0.04] transition-colors group">
                       <td className="py-3.5 px-5">
                         <div className="flex items-center gap-3.5">
-                          <img src={resolveImageUrl(d.image) ?? ''} alt={d.name} loading="lazy"
+                          <img src={/^https?:\/\//i.test(d.image) ? d.image : ''} alt={d.name} loading="lazy"
                             className="w-12 h-12 object-cover rounded-xl border border-[#403521] group-hover:border-[#f2d29b]/40 transition-colors shrink-0" />
                           <div className="min-w-0">
                             <p className="font-serif text-[#faf7f0] leading-tight truncate">{d.name}</p>
@@ -2722,7 +2722,7 @@ export function AdminDashboard() {
                 {monthlyDesigns.map(d => (
                   <div key={d.id} className="group relative bg-[#14110c] border border-[#f2d29b]/25 rounded-2xl overflow-hidden">
                     <div className="relative h-44 overflow-hidden">
-                      <img src={resolveImageUrl(d.image) ?? ''} alt={d.name} loading="lazy" className="w-full h-full object-cover" />
+                      <img src={/^https?:\/\//i.test(d.image) ? d.image : ''} alt={d.name} loading="lazy" className="w-full h-full object-cover" />
                       <span className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-mono uppercase tracking-wider text-[#060505] font-medium"
                         style={{ background: 'linear-gradient(135deg, #f2d29b, #d4613a)' }}>
                         <Star size={10} className="fill-[#060505]" /> Del mes
