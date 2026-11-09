@@ -45,7 +45,7 @@ def _assert_no_overlap(db: Session, starts_at: datetime, ends_at: datetime, excl
         safe_starts = sanitize_log(starts_at.isoformat())
         safe_ends = sanitize_log(ends_at.isoformat())
         safe_clash = sanitize_log(str(clash))
-        logger.warning("Reserva bloqueada por solape: %s–%s choca con cita id=%s", safe_starts, safe_ends, safe_clash)
+        logger.warning("Reserva bloqueada por solape")
         raise Conflict("Horario ocupado: ya existe una cita en esa fecha y hora")
 
 
@@ -63,8 +63,7 @@ def create_appointment(db: Session, **fields) -> Appointment:
     db.add(appt)
     db.commit()
     db.refresh(appt)
-    logger.info("Cita creada: id=%s clienta=%s %s–%s", appt.id, safe_client_name,
-                appt.starts_at, appt.ends_at)
+    logger.info("Cita creada")
     return appt
 
 
@@ -85,7 +84,7 @@ def create_public_booking(db: Session, *, name: str, phone: str, email: str | No
                         email=(email or "").strip() or None)
         db.add(client)
         db.flush()
-        logger.info("Clienta creada desde reserva pública: %s (%s)", safe_name, clean_phone)
+        logger.info("Clienta creada desde reserva pública")
     if design_id is not None:
         from app.infrastructure.models.catalog import Design
         _get_or_404(db, Design, design_id, "Diseño")
@@ -97,7 +96,7 @@ def create_public_booking(db: Session, *, name: str, phone: str, email: str | No
     db.add(appt)
     db.commit()
     db.refresh(appt)
-    logger.info("Reserva pública: id=%s clienta=%s %s–%s", appt.id, client.id, starts_at, ends_at)
+    logger.info("Reserva pública creada")
     return appt
 
 
@@ -127,7 +126,7 @@ def set_status(db: Session, appointment_id: int, new_status: str) -> Appointment
         return appt
     safe_new_status = sanitize_log(new_status)
     if new_status not in VALID_TRANSITIONS.get(appt.status, set()):
-        logger.warning("Transición inválida: cita id=%s %s->%s", appt.id, appt.status, safe_new_status)
+        logger.warning("Transición inválida de cita")
         raise Conflict(f"No se puede pasar de {appt.status} a {new_status}")
     appt.status = new_status
     if new_status == "completed":
@@ -135,7 +134,7 @@ def set_status(db: Session, appointment_id: int, new_status: str) -> Appointment
         safe_client_name = sanitize_log(client.name)
         client.visits += 1
         client.last_visit = datetime.now(timezone.utc)
-        logger.info("Cita completada: id=%s, clienta %s llega a %s visitas", appt.id, safe_client_name, client.visits)
+        logger.info("Cita completada")
     db.commit()
     db.refresh(appt)
     return appt
@@ -151,12 +150,12 @@ def reschedule(db: Session, appointment_id: int, starts_at: datetime, ends_at: d
     appt.starts_at, appt.ends_at = starts_at, ends_at
     db.commit()
     db.refresh(appt)
-    logger.info("Cita reprogramada: id=%s %s–%s", appt.id, safe_starts, safe_ends)
+    logger.info("Cita reprogramada")
     return appt
 
 
 def delete_appointment(db: Session, appointment_id: int) -> None:
     appt = _get_or_404(db, Appointment, appointment_id, "Cita")
-    logger.info("Cita eliminada: id=%s (%s)", appt.id, appt.status)
+    logger.info("Cita eliminada")
     db.delete(appt)
     db.commit()
