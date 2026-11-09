@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.logging import sanitize_log
+from app.core.logging_config import sanitize_log
 from app.core.exceptions import Conflict, NotFound
 from app.infrastructure.models.clients import Client
 
@@ -44,10 +44,10 @@ def create_client(db: Session, **fields) -> Client:
         db.commit()
     except IntegrityError as exc:
         db.rollback()
-        logger.warning("Creación de clienta rechazada por duplicado: %s", safe_phone)
+        logger.warning("Creación de clienta rechazada por duplicado: %s", sanitize_log(safe_phone))
         raise Conflict("Teléfono ya registrado") from exc
     db.refresh(client)
-    logger.info("Clienta creada: %s (id=%s)", client.name, client.id)
+    logger.info("Clienta creada: %s (id=%s)", sanitize_log(client.name), client.id)
     return client
 
 
@@ -76,7 +76,7 @@ def update_client(db: Session, client_id: int, **fields) -> Client:
         db.rollback()
         raise Conflict("Teléfono ya registrado") from exc
     db.refresh(client)
-    logger.info("Clienta actualizada: %s (id=%s)", client.name, client.id)
+    logger.info("Clienta actualizada: %s (id=%s)", sanitize_log(client.name), client.id)
     return client
 
 
@@ -87,7 +87,8 @@ def adjust_points(db: Session, client_id: int, delta: int, reason: str = "") -> 
     client.points = max(0, client.points + delta)
     db.commit()
     db.refresh(client)
-    logger.info("Puntos ajustados: %s %+d (motivo=%s, total=%s)", client.name, delta, safe_reason or "-", client.points)
+    logger.info("Puntos ajustados: %s %+d (motivo=%s, total=%s)",
+                sanitize_log(client.name), delta, sanitize_log(safe_reason or "-"), client.points)
     return client
 
 
@@ -99,8 +100,8 @@ def delete_client(db: Session, client_id: int) -> None:
         select(func.count()).select_from(Appointment).where(Appointment.client_id == client_id)
     ) or 0
     if n > 0:
-        logger.warning("Eliminación de clienta bloqueada: %s tiene %s citas", client.name, n)
+        logger.warning("Eliminación de clienta bloqueada: %s tiene %s citas", sanitize_log(client.name), n)
         raise Conflict(f"No se puede eliminar: tiene {n} citas registradas")
-    logger.info("Clienta eliminada: %s (id=%s)", client.name, client.id)
+    logger.info("Clienta eliminada: %s (id=%s)", sanitize_log(client.name), client.id)
     db.delete(client)
     db.commit()

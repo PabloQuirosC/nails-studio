@@ -1,10 +1,11 @@
 """Casos de uso de Contenido (blog + testimonios + nosotros). Lectura pública solo publicados."""
 import logging
+import re
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.logging import sanitize_log
+from app.core.logging_config import sanitize_log
 from app.core.exceptions import Conflict, NotFound
 from app.infrastructure.models.content import Post, PostCategory
 
@@ -77,11 +78,12 @@ def create_post(db: Session, **fields) -> Post:
     if "image_url" in fields:
         fields["image_url"] = _require_http_url(fields["image_url"])
     safe_title = sanitize_log(fields["title"])
+    fields["title"] = safe_title
     base = _slugify(safe_title)
     slug, i = base, 2
     while db.scalar(select(Post).where(Post.slug == slug)):
         slug, i = f"{base}-{i}", i + 1
-    post = Post(slug=slug, title=safe_title, **fields)
+    post = Post(slug=slug, **fields)
     db.add(post)
     db.commit()
     db.refresh(post)

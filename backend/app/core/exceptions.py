@@ -13,6 +13,10 @@ class Conflict(DomainError):
     pass
 
 
+class InvalidConfiguration(DomainError):
+    pass
+
+
 class ForbiddenOp(DomainError):
     pass
 

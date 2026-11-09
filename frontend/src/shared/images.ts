@@ -8,18 +8,20 @@ export function resolveImageUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   const raw = url.trim();
   if (!raw) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
   let id: string | null = null;
   const fileMatch = raw.match(/drive\.google\.com\/file\/d\/([\w-]+)/i);
   if (fileMatch) {
     id = fileMatch[1];
   } else {
-    try {
-      const parsed = new URL(raw);
-      if (parsed.hostname === 'drive.google.com') {
-        id = parsed.searchParams.get('id');
-      }
-    } catch {
-      return raw;
+    if (parsed.hostname === 'drive.google.com') {
+      id = parsed.searchParams.get('id');
     }
   }
   if (!id) return raw;

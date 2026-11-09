@@ -1,10 +1,11 @@
 """Casos de uso de Agenda: anti-solape global (una sola artista)."""
 import logging
+from datetime import datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.logging import sanitize_log
+from app.core.logging_config import sanitize_log
 from app.core.exceptions import Conflict, NotFound
 from app.infrastructure.models.agenda import VALID_TRANSITIONS, Appointment
 from app.infrastructure.models.clients import Client
@@ -58,7 +59,7 @@ def create_appointment(db: Session, **fields) -> Appointment:
     safe_client_name = sanitize_log(fields.get("client_name", ""))
     appt = Appointment(status="pending", client_id=fields["client_id"], design_id=fields.get("design_id"),
                        starts_at=fields["starts_at"], ends_at=fields["ends_at"],
-                       notes=sanitize_log(fields.get("notes", "")), status="pending")
+                       notes=sanitize_log(fields.get("notes", "")))
     db.add(appt)
     db.commit()
     db.refresh(appt)
