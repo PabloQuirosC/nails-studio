@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { MessageCircle, X, Send, ChevronRight } from 'lucide-react';
 import { DESIGNS } from '../../data';
 import { useContactInfo } from '../../features/contact/contact-api';
@@ -35,6 +35,47 @@ const INITIAL: Message = {
   text: '✨ Hola, soy tu asesora de Nails Studio. ¿En qué te ayudo hoy?',
   options: ['Ver precios', 'Agendar cita', 'Ubicación y horario', 'Quiero que me recomienden'],
 };
+
+function renderMessageText(text: string): ReactNode {
+  const tagPattern = /<a href="(\/reservas|https?:\/\/[^"]+)"[^>]*>([^<]*)<\/a>|<span class="([^"]+)">([^<]*)<\/span>/g;
+  const result: ReactNode[] = [];
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  const appendText = (value: string) => {
+    value.split('\n').forEach((line, index) => {
+      if (index > 0) result.push(<br key={`br-${key++}`} />);
+      if (line) result.push(line);
+    });
+  };
+
+  while ((match = tagPattern.exec(text)) !== null) {
+    appendText(text.slice(cursor, match.index));
+    if (match[1]) {
+      result.push(
+        <a
+          key={`link-${key++}`}
+          href={match[1]}
+          target={match[1].startsWith('http') ? '_blank' : undefined}
+          rel={match[1].startsWith('http') ? 'noreferrer' : undefined}
+          className="text-[#f2d29b] underline"
+        >
+          {match[2]}
+        </a>,
+      );
+    } else {
+      result.push(
+        <span key={`span-${key++}`} className={match[3]}>
+          {match[4]}
+        </span>,
+      );
+    }
+    cursor = match.index + match[0].length;
+  }
+  appendText(text.slice(cursor));
+  return result;
+}
 
 export function Chatbot() {
   const [open, setOpen] = useState(false);
@@ -195,7 +236,7 @@ export function Chatbot() {
                   ) : msg.from === 'user' ? (
                     <span className="whitespace-pre-line break-words">{msg.text}</span>
                   ) : (
-                    <span dangerouslySetInnerHTML={{ __html: msg.text.replace(/\n/g, '<br/>') }} />
+                    <span>{renderMessageText(msg.text)}</span>
                   )}
                   {msg.options && (
                     <div className="mt-2 flex flex-col gap-1.5">

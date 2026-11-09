@@ -4,6 +4,7 @@ import re
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
@@ -11,11 +12,6 @@ from app.core.exceptions import InvalidConfiguration
 
 # Pattern to validate database URL - prevent URL injection
 # Only allow standard URL formats with http, https, or postgres schemes
-_DATABASE_URL_PATTERN = re.compile(
-    r"^postgres(?:://)?[^\s]+$|^mysql://[^\s]+$|^postgresql://[^\s]+$"
-)
-
-
 def _validate_database_url(url: str) -> str:
     """Validar y sanitizar la URL de base de datos para prevenir injection.
     
@@ -28,19 +24,25 @@ def _validate_database_url(url: str) -> str:
     # Limpiar espacios en blanco
     url = url.strip()
     
-    # Verificar esquema permitido
-    if not re.match(r"^(postgres|postgresql|mysql)://", url, re.IGNORECASE):
-        # Aceptar también URLs sin esquema que empiecen con los estándares
-        if not url.startswith(("postgres://", "postgresql://", "mysql://")):
-            raise InvalidConfiguration(
-                "DATABASE_URL debe tener un esquema válido (postgres://, postgresql://, mysql://)"
-            )
-    
     # Verificar que no haya caracteres de control o inyección
-    if re.search(r"[\\x00-\\x1f\\x7f]", url):
+    if re.search(r"[\x00-\x1f\x7f]", url):
         raise InvalidConfiguration("DATABASE_URL contiene caracteres no válidos")
-    
-    return url
+
+    try:
+        parsed = make_url(url)
+    except ArgumentError as exc:
+        raise InvalidConfiguration("DATABASE_URL no es válida") from exc
+    if parsed.drivername not in {
+        "postgres",
+        "postgresql",
+        "postgresql+psycopg2",
+        "mysql",
+        "mysql+pymysql",
+    } or not parsed.host:
+        raise InvalidConfiguration(
+            "DATABASE_URL debe usar una URL PostgreSQL o MySQL con host"
+        )
+    return parsed.render_as_string(hide_password=False)
 
 
 def _ensure() -> None:
@@ -54,7 +56,10 @@ def _ensure() -> None:
     safe_url = _validate_database_url(settings.database_url)
     
     database_url = make_url(safe_url)
-    if database_url.host and database_url.host.endswith("pooler.supabase.com") and database_url.port == 5432:
+    if database_url.host and (
+        database_url.host == "pooler.supabase.com"
+        or database_url.host.endswith(".pooler.supabase.com")
+    ) and database_url.port == 5432:
         database_url = database_url.set(port=6543)
     url = database_url.render_as_string(hide_password=False)
     connect_args = {"sslmode": "require"} if "sslmode" not in url else {}

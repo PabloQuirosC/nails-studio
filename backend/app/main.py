@@ -107,7 +107,7 @@ async def _409(_req, exc: Conflict):
 
 @app.exception_handler(ForbiddenOp)
 async def _400(_req, exc: ForbiddenOp):
-    return JSONResponse(status_code=400, content={"detail": str(exc)}
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
 @app.get("/")

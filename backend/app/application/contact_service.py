@@ -4,7 +4,7 @@ import logging
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.logging import sanitize_log
+from app.core.logging_config import sanitize_log
 from app.core.exceptions import Conflict, NotFound
 from app.infrastructure.models.contact import ContactInfo, ContactMessage, ContactSocial
 
